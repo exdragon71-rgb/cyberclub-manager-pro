@@ -1,4 +1,8 @@
 import type {
+  InventoryBalance,
+  InventoryBalanceUpdate,
+} from '../types/inventoryBalance'
+import type {
   Product,
   ProductCreate,
   ProductUpdate,
@@ -26,7 +30,8 @@ async function apiRequest<T>(
     let message = `Ошибка сервера: ${response.status}`
 
     try {
-      const errorBody = (await response.json()) as ApiErrorBody
+      const errorBody =
+        (await response.json()) as ApiErrorBody
 
       if (errorBody.detail) {
         message = errorBody.detail
@@ -48,24 +53,31 @@ export interface DatabaseHealth {
 }
 
 export function getDatabaseHealth(): Promise<DatabaseHealth> {
-  return apiRequest<DatabaseHealth>('/health/database')
+  return apiRequest<DatabaseHealth>(
+    '/health/database',
+  )
 }
 
 export function getProducts(
-  
   includeInactive = false,
 ): Promise<Product[]> {
   const query = new URLSearchParams({
     include_inactive: String(includeInactive),
   })
 
-  return apiRequest<Product[]>(`/products?${query.toString()}`)
+  return apiRequest<Product[]>(
+    `/products?${query.toString()}`,
+  )
 }
+
 export function getProduct(
   productId: string,
 ): Promise<Product> {
-  return apiRequest<Product>(`/products/${productId}`)
+  return apiRequest<Product>(
+    `/products/${productId}`,
+  )
 }
+
 export function createProduct(
   product: ProductCreate,
 ): Promise<Product> {
@@ -79,10 +91,13 @@ export function updateProduct(
   productId: string,
   product: ProductUpdate,
 ): Promise<Product> {
-  return apiRequest<Product>(`/products/${productId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(product),
-  })
+  return apiRequest<Product>(
+    `/products/${productId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(product),
+    },
+  )
 }
 
 export function archiveProduct(
@@ -103,6 +118,39 @@ export function restoreProduct(
     `/products/${productId}/restore`,
     {
       method: 'POST',
+    },
+  )
+}
+
+export function getInventoryBalances(
+  includeInactive = false,
+): Promise<InventoryBalance[]> {
+  const query = new URLSearchParams({
+    include_inactive: String(includeInactive),
+  })
+
+  return apiRequest<InventoryBalance[]>(
+    `/inventory-balances?${query.toString()}`,
+  )
+}
+
+export function getInventoryBalance(
+  productId: string,
+): Promise<InventoryBalance> {
+  return apiRequest<InventoryBalance>(
+    `/inventory-balances/${productId}`,
+  )
+}
+
+export function updateInventoryBalance(
+  productId: string,
+  balance: InventoryBalanceUpdate,
+): Promise<InventoryBalance> {
+  return apiRequest<InventoryBalance>(
+    `/inventory-balances/${productId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(balance),
     },
   )
 }
