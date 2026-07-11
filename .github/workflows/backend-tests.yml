@@ -12,11 +12,29 @@ jobs:
   test-backend:
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:18
+
+        env:
+          POSTGRES_DB: cyberclub_manager_test
+          POSTGRES_USER: cyberclub_app
+          POSTGRES_PASSWORD: cyberclub_test_password
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       DB_HOST: localhost
       DB_PORT: 5432
-      DB_NAME: cyberclub_manager_test
-      DB_USER: cyberclub_test
+      DB_NAME: cyberclub_manager
+      DB_USER: cyberclub_app
       DB_PASSWORD: cyberclub_test_password
 
     steps:
