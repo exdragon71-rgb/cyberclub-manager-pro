@@ -1,3 +1,18 @@
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from 'react'
+
+import {
+  getDatabaseHealth,
+  getProducts,
+  type DatabaseHealth,
+} from './api/client'
+
+import type { Product } from './types/product'
+
+
 const navigationItems = [
   { name: 'Главная', active: true },
   { name: 'Ревизия', active: false },
@@ -9,51 +24,137 @@ const navigationItems = [
   { name: 'Настройки', active: false },
 ]
 
-const dashboardCards = [
-  {
-    title: 'Активные долги',
-    value: '0 ₽',
-    description: 'Долги сотрудников',
-  },
-  {
-    title: 'Лотерейки',
-    value: '0 ₽',
-    description: 'Ожидают списания',
-  },
-  {
-    title: 'Недостача',
-    value: '0 ₽',
-    description: 'По текущей ревизии',
-  },
-  {
-    title: 'Активная смена',
-    value: 'Нет',
-    description: 'Смена не открыта',
-  },
-]
 
-const recentActions = [
-  {
-    action: 'Backend подключён к PostgreSQL',
-    user: 'System',
-    date: 'Сегодня',
-    status: 'Готово',
-  },
-  {
-    action: 'Создан модуль товаров',
-    user: 'System',
-    date: 'Сегодня',
-    status: 'Готово',
-  },
-  {
-    action: 'Настроены автоматические тесты',
-    user: 'GitHub Actions',
-    date: 'Сегодня',
-    status: 'Готово',
-  },
-]
+type LoadingStatus =
+  | 'loading'
+  | 'success'
+  | 'error'
+
 
 function App() {
+  const [databaseHealth, setDatabaseHealth] =
+    useState<DatabaseHealth | null>(null)
+
+  const [products, setProducts] =
+    useState<Product[]>([])
+
+  const [loadingStatus, setLoadingStatus] =
+    useState<LoadingStatus>('loading')
+
+  const [errorMessage, setErrorMessage] =
+    useState('')
+
+
+  const loadDashboard = useCallback(async () => {
+    setLoadingStatus('loading')
+    setErrorMessage('')
+
+    try {
+      const [
+        databaseResponse,
+        productsResponse,
+      ] = await Promise.all([
+        getDatabaseHealth(),
+        getProducts(),
+      ])
+
+      setDatabaseHealth(databaseResponse)
+      setProducts(productsResponse)
+      setLoadingStatus('success')
+    } catch (error) {
+      setDatabaseHealth(null)
+      setProducts([])
+      setLoadingStatus('error')
+
+      if (error instanceof Error) {
+        setErrorMessage(error.message)
+      } else {
+        setErrorMessage(
+          'Не удалось подключиться к backend',
+        )
+      }
+    }
+  }, [])
+
+
+  useEffect(() => {
+    void loadDashboard()
+  }, [loadDashboard])
+
+
+  const databaseIsConnected =
+    loadingStatus === 'success'
+    && databaseHealth?.status === 'ok'
+
+
+  const databaseStatusText = (() => {
+    if (loadingStatus === 'loading') {
+      return 'Проверка подключения...'
+    }
+
+    if (databaseIsConnected) {
+      return 'Подключение активно'
+    }
+
+    return 'Нет подключения'
+  })()
+
+
+  const dashboardCards = [
+    {
+      title: 'Активные товары',
+      value:
+        loadingStatus === 'loading'
+          ? '...'
+          : String(products.length),
+      description: 'Товары в PostgreSQL',
+    },
+    {
+      title: 'Активные долги',
+      value: '0 ₽',
+      description: 'Модуль в разработке',
+    },
+    {
+      title: 'Лотерейки',
+      value: '0 ₽',
+      description: 'Модуль в разработке',
+    },
+    {
+      title: 'Недостача',
+      value: '0 ₽',
+      description: 'Модуль в разработке',
+    },
+  ]
+
+
+  const recentActions = [
+    {
+      action: databaseIsConnected
+        ? 'Frontend подключён к FastAPI'
+        : 'Ожидание подключения к FastAPI',
+      user: 'System',
+      date: 'Сегодня',
+      status: databaseIsConnected
+        ? 'Готово'
+        : 'Проверка',
+    },
+    {
+      action: `Загружено товаров: ${products.length}`,
+      user: 'PostgreSQL',
+      date: 'Сегодня',
+      status: databaseIsConnected
+        ? 'Готово'
+        : 'Ожидание',
+    },
+    {
+      action: 'Настроены автоматические тесты',
+      user: 'GitHub Actions',
+      date: 'Сегодня',
+      status: 'Готово',
+    },
+  ]
+
+
   return (
     <div className="min-h-screen bg-[#070a10] text-slate-100">
       <div className="flex min-h-screen">
@@ -96,12 +197,27 @@ function App() {
               </p>
 
               <div className="mt-2 flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                <span
+                  className={[
+                    'h-2.5 w-2.5 rounded-full',
+                    loadingStatus === 'loading'
+                      ? 'animate-pulse bg-amber-400'
+                      : databaseIsConnected
+                        ? 'bg-emerald-400'
+                        : 'bg-red-400',
+                  ].join(' ')}
+                />
 
                 <span className="text-xs text-slate-400">
-                  Подключение активно
+                  {databaseStatusText}
                 </span>
               </div>
+
+              {databaseHealth && (
+                <p className="mt-2 truncate text-xs text-slate-600">
+                  {databaseHealth.database}
+                </p>
+              )}
             </div>
           </div>
         </aside>
@@ -121,9 +237,15 @@ function App() {
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
+                onClick={() => {
+                  void loadDashboard()
+                }}
+                disabled={loadingStatus === 'loading'}
+                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-wait disabled:opacity-50"
               >
-                Обновить
+                {loadingStatus === 'loading'
+                  ? 'Загрузка...'
+                  : 'Обновить'}
               </button>
 
               <button
@@ -136,6 +258,18 @@ function App() {
           </header>
 
           <div className="space-y-8 p-8">
+            {loadingStatus === 'error' && (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+                <p className="font-semibold text-red-300">
+                  Backend недоступен
+                </p>
+
+                <p className="mt-1 text-sm text-red-300/70">
+                  {errorMessage}
+                </p>
+              </div>
+            )}
+
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {dashboardCards.map((card) => (
                 <article
@@ -166,7 +300,7 @@ function App() {
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      История изменений системы
+                      Состояние модулей системы
                     </p>
                   </div>
 
@@ -185,12 +319,15 @@ function App() {
                         <th className="px-6 py-4 font-semibold">
                           Действие
                         </th>
+
                         <th className="px-6 py-4 font-semibold">
-                          Пользователь
+                          Источник
                         </th>
+
                         <th className="px-6 py-4 font-semibold">
                           Дата
                         </th>
+
                         <th className="px-6 py-4 font-semibold">
                           Статус
                         </th>
@@ -216,7 +353,14 @@ function App() {
                           </td>
 
                           <td className="px-6 py-4">
-                            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-400">
+                            <span
+                              className={[
+                                'rounded-full px-3 py-1 text-xs font-semibold',
+                                item.status === 'Готово'
+                                  ? 'bg-emerald-500/10 text-emerald-400'
+                                  : 'bg-amber-500/10 text-amber-400',
+                              ].join(' ')}
+                            >
                               {item.status}
                             </span>
                           </td>
@@ -260,5 +404,6 @@ function App() {
     </div>
   )
 }
+
 
 export default App
