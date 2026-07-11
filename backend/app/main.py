@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.api import products_router
 from app.core.config import settings
 from app.core.database import engine
 
@@ -13,7 +14,14 @@ app = FastAPI(
 )
 
 
-@app.get("/", tags=["System"])
+app.include_router(products_router)
+
+
+@app.get(
+    "/",
+    tags=["System"],
+    summary="Информация о приложении",
+)
 def root():
     return {
         "app": "CyberClub Manager Pro",
@@ -22,18 +30,28 @@ def root():
     }
 
 
-@app.get("/health", tags=["System"])
+@app.get(
+    "/health",
+    tags=["System"],
+    summary="Проверка backend",
+)
 def health_check():
     return {
         "status": "ok",
     }
 
 
-@app.get("/health/database", tags=["System"])
+@app.get(
+    "/health/database",
+    tags=["System"],
+    summary="Проверка PostgreSQL",
+)
 def database_health_check():
     try:
         with engine.connect() as connection:
-            result = connection.execute(text("SELECT 1"))
+            result = connection.execute(
+                text("SELECT 1")
+            )
             result.scalar_one()
 
         return {
@@ -42,8 +60,8 @@ def database_health_check():
             "user": settings.db_user,
         }
 
-    except SQLAlchemyError:
+    except SQLAlchemyError as error:
         raise HTTPException(
             status_code=503,
             detail="Database connection failed",
-        )
+        ) from error
