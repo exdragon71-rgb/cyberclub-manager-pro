@@ -3,7 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.api import products_router
+from app.api import (
+    inventory_balances_router,
+    products_router,
+)
 from app.core.config import settings
 from app.core.database import engine
 
@@ -28,6 +31,7 @@ app.add_middleware(
 
 
 app.include_router(products_router)
+app.include_router(inventory_balances_router)
 
 
 @app.get(

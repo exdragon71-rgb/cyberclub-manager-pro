@@ -10,6 +10,7 @@ import app.models
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.inventory_balance import InventoryBalance
 from app.models.product import Product
 
 
@@ -63,6 +64,9 @@ def prepare_test_database() -> Generator[None, None, None]:
 def clean_test_database() -> Generator[None, None, None]:
     with TestingSessionLocal() as session:
         session.execute(
+            delete(InventoryBalance)
+        )
+        session.execute(
             delete(Product)
         )
         session.commit()
@@ -70,6 +74,9 @@ def clean_test_database() -> Generator[None, None, None]:
     yield
 
     with TestingSessionLocal() as session:
+        session.execute(
+            delete(InventoryBalance)
+        )
         session.execute(
             delete(Product)
         )

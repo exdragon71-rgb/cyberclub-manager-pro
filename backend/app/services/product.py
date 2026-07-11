@@ -4,6 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.product import Product
+from app.repositories.inventory_balance import (
+    InventoryBalanceRepository,
+    inventory_balance_repository,
+)
 from app.repositories.product import (
     ProductRepository,
     product_repository,
@@ -27,8 +31,10 @@ class ProductService:
     def __init__(
         self,
         repository: ProductRepository,
+        balance_repository: InventoryBalanceRepository,
     ) -> None:
         self.repository = repository
+        self.balance_repository = balance_repository
 
     def get_all(
         self,
@@ -123,6 +129,11 @@ class ProductService:
                 normalized_data,
             )
 
+            self.balance_repository.create_for_product(
+                db,
+                product.id,
+            )
+
             db.commit()
             db.refresh(product)
 
@@ -214,7 +225,8 @@ class ProductService:
 
                 if (
                     existing_lightshell_product is not None
-                    and existing_lightshell_product.id != product.id
+                    and existing_lightshell_product.id
+                    != product.id
                 ):
                     raise ProductAlreadyExistsError(
                         "Товар с таким LightShell ID "
@@ -321,5 +333,6 @@ class ProductService:
 
 
 product_service = ProductService(
-    repository=product_repository
+    repository=product_repository,
+    balance_repository=inventory_balance_repository,
 )
