@@ -46,8 +46,8 @@ function App() {
 
 
   const loadDashboard = useCallback(async () => {
-    setLoadingStatus('loading')
-    setErrorMessage('')
+    
+    
 
     try {
       const [
@@ -78,8 +78,16 @@ function App() {
 
 
   useEffect(() => {
+  const timeoutId = window.setTimeout(() => {
     void loadDashboard()
+  }, 0)
+
+  return () => {
+    window.clearTimeout(timeoutId)
+  }
   }, [loadDashboard])
+  
+  
 
 
   const databaseIsConnected =
@@ -238,8 +246,12 @@ function App() {
               <button
                 type="button"
                 onClick={() => {
-                  void loadDashboard()
-                }}
+               setLoadingStatus('loading')
+               setErrorMessage('')
+               void loadDashboard()
+              }}
+                  
+                
                 disabled={loadingStatus === 'loading'}
                 className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-wait disabled:opacity-50"
               >
