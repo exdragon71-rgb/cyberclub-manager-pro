@@ -1,4 +1,9 @@
 import type {
+  Employee,
+  EmployeeCreate,
+  EmployeeUpdate,
+} from '../types/employee'
+import type {
   InventoryBalance,
   InventoryBalanceUpdate,
 } from '../types/inventoryBalance'
@@ -151,6 +156,70 @@ export function updateInventoryBalance(
     {
       method: 'PATCH',
       body: JSON.stringify(balance),
+    },
+  )
+}
+
+export function getEmployees(
+  includeInactive = false,
+): Promise<Employee[]> {
+  const query = new URLSearchParams({
+    include_inactive: String(includeInactive),
+  })
+
+  return apiRequest<Employee[]>(
+    `/employees?${query.toString()}`,
+  )
+}
+
+export function getEmployee(
+  employeeId: string,
+): Promise<Employee> {
+  return apiRequest<Employee>(
+    `/employees/${employeeId}`,
+  )
+}
+
+export function createEmployee(
+  employee: EmployeeCreate,
+): Promise<Employee> {
+  return apiRequest<Employee>('/employees', {
+    method: 'POST',
+    body: JSON.stringify(employee),
+  })
+}
+
+export function updateEmployee(
+  employeeId: string,
+  employee: EmployeeUpdate,
+): Promise<Employee> {
+  return apiRequest<Employee>(
+    `/employees/${employeeId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(employee),
+    },
+  )
+}
+
+export function archiveEmployee(
+  employeeId: string,
+): Promise<Employee> {
+  return apiRequest<Employee>(
+    `/employees/${employeeId}/archive`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+export function restoreEmployee(
+  employeeId: string,
+): Promise<Employee> {
+  return apiRequest<Employee>(
+    `/employees/${employeeId}/restore`,
+    {
+      method: 'POST',
     },
   )
 }
