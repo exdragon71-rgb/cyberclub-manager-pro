@@ -10,6 +10,7 @@ import {
 import App from './App.tsx'
 import './index.css'
 import { CreateProductPage } from './pages/CreateProductPage.tsx'
+import { DebtsPage } from './pages/DebtsPage.tsx'
 import { EditProductPage } from './pages/EditProductPage.tsx'
 import { EmployeesPage } from './pages/EmployeesPage.tsx'
 import { InventoryPage } from './pages/InventoryPage.tsx'
@@ -44,6 +45,11 @@ createRoot(document.getElementById('root')!).render(
         <Route
           path="/employees"
           element={<EmployeesPage />}
+        />
+
+        <Route
+          path="/debts"
+          element={<DebtsPage />}
         />
 
         <Route

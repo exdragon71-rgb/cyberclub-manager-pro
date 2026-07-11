@@ -1,4 +1,10 @@
 import type {
+  Debt,
+  DebtCreate,
+  DebtStatus,
+  DebtUpdate,
+} from '../types/debt'
+import type {
   Employee,
   EmployeeCreate,
   EmployeeUpdate,
@@ -218,6 +224,63 @@ export function restoreEmployee(
 ): Promise<Employee> {
   return apiRequest<Employee>(
     `/employees/${employeeId}/restore`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+export function getDebts(
+  status?: DebtStatus,
+): Promise<Debt[]> {
+  const query = new URLSearchParams()
+
+  if (status) {
+    query.set('status', status)
+  }
+
+  const queryString = query.toString()
+
+  return apiRequest<Debt[]>(
+    `/debts${queryString ? `?${queryString}` : ''}`,
+  )
+}
+
+export function getDebt(
+  debtId: string,
+): Promise<Debt> {
+  return apiRequest<Debt>(
+    `/debts/${debtId}`,
+  )
+}
+
+export function createDebt(
+  debt: DebtCreate,
+): Promise<Debt> {
+  return apiRequest<Debt>('/debts', {
+    method: 'POST',
+    body: JSON.stringify(debt),
+  })
+}
+
+export function updateDebt(
+  debtId: string,
+  debt: DebtUpdate,
+): Promise<Debt> {
+  return apiRequest<Debt>(
+    `/debts/${debtId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(debt),
+    },
+  )
+}
+
+export function payDebt(
+  debtId: string,
+): Promise<Debt> {
+  return apiRequest<Debt>(
+    `/debts/${debtId}/pay`,
     {
       method: 'POST',
     },
