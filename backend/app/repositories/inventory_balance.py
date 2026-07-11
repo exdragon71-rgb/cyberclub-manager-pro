@@ -1,8 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.models.debt import Debt
 from app.models.inventory_balance import InventoryBalance
 from app.models.product import Product
 from app.schemas.inventory_balance import (
@@ -11,6 +12,24 @@ from app.schemas.inventory_balance import (
 
 
 class InventoryBalanceRepository:
+    @staticmethod
+    def active_debt_quantity_query():
+        return (
+            select(
+                func.coalesce(
+                    func.sum(Debt.quantity),
+                    0,
+                )
+            )
+            .where(
+                Debt.product_id
+                == InventoryBalance.product_id,
+                Debt.status == "active",
+            )
+            .correlate(InventoryBalance)
+            .scalar_subquery()
+        )
+
     def get_all(
         self,
         db: Session,
@@ -19,8 +38,16 @@ class InventoryBalanceRepository:
         limit: int = 100,
         include_inactive: bool = False,
     ) -> list[InventoryBalance]:
+        active_debt_quantity = (
+            self.active_debt_quantity_query()
+            .label("active_debt_quantity")
+        )
+
         statement = (
-            select(InventoryBalance)
+            select(
+                InventoryBalance,
+                active_debt_quantity,
+            )
             .join(InventoryBalance.product)
             .options(
                 selectinload(
@@ -37,17 +64,31 @@ class InventoryBalanceRepository:
 
         statement = statement.offset(offset).limit(limit)
 
-        return list(
-            db.scalars(statement).all()
-        )
+        rows = db.execute(statement).all()
+
+        balances: list[InventoryBalance] = []
+
+        for balance, debt_quantity in rows:
+            balance.active_debt_quantity = debt_quantity
+            balances.append(balance)
+
+        return balances
 
     def get_by_product_id(
         self,
         db: Session,
         product_id: UUID,
     ) -> InventoryBalance | None:
+        active_debt_quantity = (
+            self.active_debt_quantity_query()
+            .label("active_debt_quantity")
+        )
+
         statement = (
-            select(InventoryBalance)
+            select(
+                InventoryBalance,
+                active_debt_quantity,
+            )
             .options(
                 selectinload(
                     InventoryBalance.product
@@ -59,7 +100,15 @@ class InventoryBalanceRepository:
             )
         )
 
-        return db.scalar(statement)
+        row = db.execute(statement).one_or_none()
+
+        if row is None:
+            return None
+
+        balance, debt_quantity = row
+        balance.active_debt_quantity = debt_quantity
+
+        return balance
 
     def create_for_product(
         self,

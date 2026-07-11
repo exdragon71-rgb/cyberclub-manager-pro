@@ -40,14 +40,20 @@ export function InventoryPage() {
   const [balances, setBalances] = useState<
     InventoryBalance[]
   >([])
+
   const [drafts, setDrafts] = useState<
     Record<string, BalanceDraft>
   >({})
+
   const [loadingStatus, setLoadingStatus] =
     useState<LoadingStatus>('loading')
+
   const [savingProductId, setSavingProductId] =
     useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState('')
+
+  const [errorMessage, setErrorMessage] =
+    useState('')
+
   const [successMessage, setSuccessMessage] =
     useState('')
 
@@ -63,6 +69,7 @@ export function InventoryPage() {
             programQuantity: Number(
               balance.program_quantity,
             ).toString(),
+
             actualQuantity: Number(
               balance.actual_quantity,
             ).toString(),
@@ -105,6 +112,7 @@ export function InventoryPage() {
   ) {
     setDrafts((currentDrafts) => ({
       ...currentDrafts,
+
       [productId]: {
         ...currentDrafts[productId],
         [field]: value,
@@ -126,15 +134,16 @@ export function InventoryPage() {
     const programQuantity = Number(
       draft.programQuantity,
     )
+
     const actualQuantity = Number(
       draft.actualQuantity,
     )
 
     if (
-      !Number.isFinite(programQuantity) ||
-      !Number.isFinite(actualQuantity) ||
-      programQuantity < 0 ||
-      actualQuantity < 0
+      !Number.isFinite(programQuantity)
+      || !Number.isFinite(actualQuantity)
+      || programQuantity < 0
+      || actualQuantity < 0
     ) {
       setErrorMessage(
         'Остатки должны быть числами не меньше нуля.',
@@ -167,10 +176,12 @@ export function InventoryPage() {
 
       setDrafts((currentDrafts) => ({
         ...currentDrafts,
+
         [balance.product_id]: {
           programQuantity: Number(
             updatedBalance.program_quantity,
           ).toString(),
+
           actualQuantity: Number(
             updatedBalance.actual_quantity,
           ).toString(),
@@ -197,6 +208,7 @@ export function InventoryPage() {
     setLoadingStatus('loading')
     setErrorMessage('')
     setSuccessMessage('')
+
     void loadBalances()
   }
 
@@ -208,13 +220,21 @@ export function InventoryPage() {
         draft?.programQuantity
         ?? balance.program_quantity,
       )
+
       const actualQuantity = Number(
         draft?.actualQuantity
         ?? balance.actual_quantity,
       )
 
+      const activeDebtQuantity = Number(
+        balance.active_debt_quantity,
+      )
+
+      const expectedQuantity =
+        programQuantity - activeDebtQuantity
+
       const difference =
-        actualQuantity - programQuantity
+        actualQuantity - expectedQuantity
 
       const lossQuantity =
         difference < 0
@@ -223,7 +243,8 @@ export function InventoryPage() {
 
       return (
         total
-        + lossQuantity * Number(balance.product.price)
+        + lossQuantity
+        * Number(balance.product.price)
       )
     },
     0,
@@ -231,7 +252,7 @@ export function InventoryPage() {
 
   return (
     <main className="min-h-screen bg-[#070a10] p-6 text-slate-100">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-[1500px]">
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
@@ -246,8 +267,8 @@ export function InventoryPage() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-400">
-              Сравнение остатков по программе
-              и фактического количества
+              Сравнение программного остатка,
+              активных долгов и фактического количества
             </p>
           </div>
 
@@ -303,34 +324,42 @@ export function InventoryPage() {
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0f17]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left">
+            <table className="w-full min-w-[1400px] text-left">
               <thead className="border-b border-slate-800 bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     Товар
                   </th>
 
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     Цена
                   </th>
 
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     По программе
                   </th>
 
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
+                    Долги
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Ожидается
+                  </th>
+
+                  <th className="px-5 py-4">
                     Факт
                   </th>
 
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     Разница
                   </th>
 
-                  <th className="px-6 py-4">
+                  <th className="px-5 py-4">
                     Потери
                   </th>
 
-                  <th className="px-6 py-4 text-right">
+                  <th className="px-5 py-4 text-right">
                     Действия
                   </th>
                 </tr>
@@ -345,18 +374,30 @@ export function InventoryPage() {
                     draft?.programQuantity
                     ?? balance.program_quantity,
                   )
+
                   const actualQuantity = Number(
                     draft?.actualQuantity
                     ?? balance.actual_quantity,
                   )
 
+                  const activeDebtQuantity = Number(
+                    balance.active_debt_quantity,
+                  )
+
+                  const expectedQuantity =
+                    programQuantity
+                    - activeDebtQuantity
+
                   const difference =
-                    actualQuantity - programQuantity
+                    actualQuantity
+                    - expectedQuantity
 
                   const losses =
                     difference < 0
                       ? Math.abs(difference)
-                        * Number(balance.product.price)
+                        * Number(
+                          balance.product.price,
+                        )
                       : 0
 
                   const isSaving =
@@ -368,7 +409,7 @@ export function InventoryPage() {
                       key={balance.id}
                       className="transition hover:bg-slate-900/70"
                     >
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <p className="font-medium text-white">
                           {balance.product.name}
                         </p>
@@ -378,13 +419,15 @@ export function InventoryPage() {
                         </p>
                       </td>
 
-                      <td className="px-6 py-4 text-slate-300">
+                      <td className="px-5 py-4 text-slate-300">
                         {formatPrice(
-                          Number(balance.product.price),
+                          Number(
+                            balance.product.price,
+                          ),
                         )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4">
                         <input
                           type="number"
                           min="0"
@@ -400,11 +443,25 @@ export function InventoryPage() {
                               event.target.value,
                             )
                           }
-                          className="w-32 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
+                          className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
                         />
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-5 py-4 font-medium text-amber-400">
+                        {activeDebtQuantity > 0
+                          ? `−${formatQuantity(
+                              activeDebtQuantity,
+                            )}`
+                          : '—'}
+                      </td>
+
+                      <td className="px-5 py-4 font-medium text-cyan-300">
+                        {formatQuantity(
+                          expectedQuantity,
+                        )}
+                      </td>
+
+                      <td className="px-5 py-4">
                         <input
                           type="number"
                           min="0"
@@ -420,32 +477,33 @@ export function InventoryPage() {
                               event.target.value,
                             )
                           }
-                          className="w-32 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
+                          className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
                         />
                       </td>
 
                       <td
                         className={
                           difference < 0
-                            ? 'px-6 py-4 font-semibold text-red-400'
+                            ? 'px-5 py-4 font-semibold text-red-400'
                             : difference > 0
-                              ? 'px-6 py-4 font-semibold text-emerald-400'
-                              : 'px-6 py-4 text-slate-400'
+                              ? 'px-5 py-4 font-semibold text-emerald-400'
+                              : 'px-5 py-4 text-slate-400'
                         }
                       >
                         {difference > 0
                           ? '+'
                           : ''}
+
                         {formatQuantity(difference)}
                       </td>
 
-                      <td className="px-6 py-4 font-medium text-red-400">
+                      <td className="px-5 py-4 font-medium text-red-400">
                         {losses > 0
                           ? formatPrice(losses)
                           : '—'}
                       </td>
 
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-5 py-4 text-right">
                         <button
                           type="button"
                           onClick={() => {
@@ -467,7 +525,7 @@ export function InventoryPage() {
                   && balances.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={9}
                         className="px-6 py-12 text-center text-slate-500"
                       >
                         Активных товаров пока нет

@@ -32,6 +32,12 @@ class InventoryBalanceRead(BaseModel):
     program_quantity: Decimal
     actual_quantity: Decimal
 
+    active_debt_quantity: Decimal = Field(
+        default=Decimal("0"),
+        ge=0,
+        decimal_places=3,
+    )
+
     created_at: datetime
     updated_at: datetime
 
