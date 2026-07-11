@@ -10,6 +10,7 @@ import app.models
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
+from app.models.employee import Employee
 from app.models.inventory_balance import InventoryBalance
 from app.models.product import Product
 
@@ -69,6 +70,9 @@ def clean_test_database() -> Generator[None, None, None]:
         session.execute(
             delete(Product)
         )
+        session.execute(
+            delete(Employee)
+        )
         session.commit()
 
     yield
@@ -79,6 +83,9 @@ def clean_test_database() -> Generator[None, None, None]:
         )
         session.execute(
             delete(Product)
+        )
+        session.execute(
+            delete(Employee)
         )
         session.commit()
 
