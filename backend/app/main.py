@@ -4,6 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import (
+    debts_router,
     employees_router,
     inventory_balances_router,
     products_router,
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(products_router)
 app.include_router(inventory_balances_router)
 app.include_router(employees_router)
+app.include_router(debts_router)
 
 
 @app.get(
