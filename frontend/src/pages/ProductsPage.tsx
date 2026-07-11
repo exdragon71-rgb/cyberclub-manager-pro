@@ -21,6 +21,12 @@ function formatPrice(price: string) {
   })
 }
 
+function formatQuantity(quantity: string) {
+  return Number(quantity).toLocaleString('ru-RU', {
+    maximumFractionDigits: 3,
+  })
+}
+
 export function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loadingStatus, setLoadingStatus] =
@@ -101,16 +107,11 @@ export function ProductsPage() {
             </button>
 
             <Link
-        to="/products/new"
-         className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
->
-      Добавить товар
-</Link>
-              
-              
-            
-              
-            
+              to="/products/new"
+              className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+            >
+              Добавить товар
+            </Link>
           </div>
         </header>
 
@@ -161,7 +162,7 @@ export function ProductsPage() {
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0f17]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px] text-left">
+            <table className="w-full min-w-[950px] text-left">
               <thead className="border-b border-slate-800 bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-6 py-4">
@@ -182,6 +183,10 @@ export function ProductsPage() {
 
                   <th className="px-6 py-4">
                     Статус
+                  </th>
+
+                  <th className="px-6 py-4 text-right">
+                    Действия
                   </th>
                 </tr>
               </thead>
@@ -213,7 +218,9 @@ export function ProductsPage() {
                     </td>
 
                     <td className="px-6 py-4 text-slate-300">
-                      {product.minimum_stock}
+                      {formatQuantity(
+                        product.minimum_stock,
+                      )}
                     </td>
 
                     <td className="px-6 py-4">
@@ -229,6 +236,15 @@ export function ProductsPage() {
                           : 'В архиве'}
                       </span>
                     </td>
+
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        to={`/products/${product.id}/edit`}
+                        className="inline-flex rounded-lg border border-slate-700 px-3 py-2 text-sm font-medium text-slate-300 transition hover:border-cyan-500 hover:text-cyan-400"
+                      >
+                        Редактировать
+                      </Link>
+                    </td>
                   </tr>
                 ))}
 
@@ -236,7 +252,7 @@ export function ProductsPage() {
                   products.length === 0 && (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-6 py-12 text-center text-slate-500"
                       >
                         Товаров пока нет

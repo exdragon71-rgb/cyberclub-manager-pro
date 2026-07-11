@@ -10,6 +10,7 @@ import {
 import App from './App.tsx'
 import './index.css'
 import { CreateProductPage } from './pages/CreateProductPage.tsx'
+import { EditProductPage } from './pages/EditProductPage.tsx'
 import { ProductsPage } from './pages/ProductsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -17,10 +18,20 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />} />
-        <Route path="/products" element={<ProductsPage />} />
+
+        <Route
+          path="/products"
+          element={<ProductsPage />}
+        />
+
         <Route
           path="/products/new"
           element={<CreateProductPage />}
+        />
+
+        <Route
+          path="/products/:productId/edit"
+          element={<EditProductPage />}
         />
 
         <Route

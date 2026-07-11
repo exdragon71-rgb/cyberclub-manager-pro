@@ -52,6 +52,7 @@ export function getDatabaseHealth(): Promise<DatabaseHealth> {
 }
 
 export function getProducts(
+  
   includeInactive = false,
 ): Promise<Product[]> {
   const query = new URLSearchParams({
@@ -60,7 +61,11 @@ export function getProducts(
 
   return apiRequest<Product[]>(`/products?${query.toString()}`)
 }
-
+export function getProduct(
+  productId: string,
+): Promise<Product> {
+  return apiRequest<Product>(`/products/${productId}`)
+}
 export function createProduct(
   product: ProductCreate,
 ): Promise<Product> {
