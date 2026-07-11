@@ -9,6 +9,7 @@ import {
 
 import App from './App.tsx'
 import './index.css'
+import { CreateProductPage } from './pages/CreateProductPage.tsx'
 import { ProductsPage } from './pages/ProductsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -17,6 +18,10 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<App />} />
         <Route path="/products" element={<ProductsPage />} />
+        <Route
+          path="/products/new"
+          element={<CreateProductPage />}
+        />
 
         <Route
           path="*"

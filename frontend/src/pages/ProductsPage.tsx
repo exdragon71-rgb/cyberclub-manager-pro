@@ -100,12 +100,17 @@ export function ProductsPage() {
                 : 'Обновить'}
             </button>
 
-            <button
-              type="button"
-              className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-            >
-              Добавить товар
-            </button>
+            <Link
+        to="/products/new"
+         className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
+>
+      Добавить товар
+</Link>
+              
+              
+            
+              
+            
           </div>
         </header>
 
