@@ -97,28 +97,20 @@ export function InventoryPage() {
                 {
                   programQuantity:
                     Number(
-                      balance
-                        .program_quantity,
+                      balance.program_quantity,
                     ).toString(),
 
                   actualQuantity:
                     Number(
-                      balance
-                        .actual_quantity,
+                      balance.actual_quantity,
                     ).toString(),
                 },
               ],
             ),
           )
 
-        setBalances(
-          loadedBalances,
-        )
-
-        setDrafts(
-          loadedDrafts,
-        )
-
+        setBalances(loadedBalances)
+        setDrafts(loadedDrafts)
         setErrorMessage('')
         setLoadingStatus('success')
       } catch (error) {
@@ -234,13 +226,9 @@ export function InventoryPage() {
       setBalances(
         (currentBalances) =>
           currentBalances.map(
-            (
-              currentBalance,
-            ) =>
-              currentBalance
-                .product_id
-              === balance
-                .product_id
+            (currentBalance) =>
+              currentBalance.product_id
+              === balance.product_id
                 ? updatedBalance
                 : currentBalance,
           ),
@@ -310,29 +298,30 @@ export function InventoryPage() {
 
         const programQuantity =
           Number(
-            draft
-              ?.programQuantity
-            ?? balance
-              .program_quantity,
+            draft?.programQuantity
+            ?? balance.program_quantity,
           )
 
         const actualQuantity =
           Number(
-            draft
-              ?.actualQuantity
-            ?? balance
-              .actual_quantity,
+            draft?.actualQuantity
+            ?? balance.actual_quantity,
           )
 
         const activeDebtQuantity =
           Number(
-            balance
-              .active_debt_quantity,
+            balance.active_debt_quantity,
+          )
+
+        const activePrizeQuantity =
+          Number(
+            balance.active_prize_quantity,
           )
 
         const expectedQuantity =
           programQuantity
           - activeDebtQuantity
+          - activePrizeQuantity
 
         const difference =
           actualQuantity
@@ -340,18 +329,14 @@ export function InventoryPage() {
 
         const lossQuantity =
           difference < 0
-            ? Math.abs(
-                difference,
-              )
+            ? Math.abs(difference)
             : 0
 
         return (
           total
           + lossQuantity
           * Number(
-            balance
-              .product
-              .price,
+            balance.product.price,
           )
         )
       },
@@ -360,7 +345,7 @@ export function InventoryPage() {
 
   return (
     <main className="min-h-screen bg-[#070a10] p-6 text-slate-100">
-      <div className="mx-auto max-w-[1500px]">
+      <div className="mx-auto max-w-[1600px]">
         <header className="flex flex-col gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <Link
@@ -375,9 +360,9 @@ export function InventoryPage() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-400">
-              Сравнение программного
-              остатка, активных долгов
-              и фактического количества
+              Программный остаток,
+              долги, лотерейные призы
+              и фактическое количество
             </p>
           </div>
 
@@ -391,9 +376,7 @@ export function InventoryPage() {
 
             <button
               type="button"
-              onClick={
-                handleRefresh
-              }
+              onClick={handleRefresh}
               disabled={
                 loadingStatus
                 === 'loading'
@@ -424,7 +407,7 @@ export function InventoryPage() {
 
           <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5">
             <p className="text-sm text-slate-400">
-              Предварительные потери
+              Необъяснённые потери
             </p>
 
             <p className="mt-2 text-3xl font-bold text-red-400">
@@ -452,7 +435,7 @@ export function InventoryPage() {
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0f17]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-left">
+            <table className="w-full min-w-[1550px] text-left">
               <thead className="border-b border-slate-800 bg-slate-950/60 text-xs uppercase tracking-wider text-slate-500">
                 <tr>
                   <th className="px-5 py-4">
@@ -469,6 +452,10 @@ export function InventoryPage() {
 
                   <th className="px-5 py-4">
                     Долги
+                  </th>
+
+                  <th className="px-5 py-4">
+                    Лотерейки
                   </th>
 
                   <th className="px-5 py-4">
@@ -498,22 +485,19 @@ export function InventoryPage() {
                   (balance) => {
                     const draft =
                       drafts[
-                        balance
-                          .product_id
+                        balance.product_id
                       ]
 
                     const programQuantity =
                       Number(
-                        draft
-                          ?.programQuantity
+                        draft?.programQuantity
                         ?? balance
                           .program_quantity,
                       )
 
                     const actualQuantity =
                       Number(
-                        draft
-                          ?.actualQuantity
+                        draft?.actualQuantity
                         ?? balance
                           .actual_quantity,
                       )
@@ -524,9 +508,16 @@ export function InventoryPage() {
                           .active_debt_quantity,
                       )
 
+                    const activePrizeQuantity =
+                      Number(
+                        balance
+                          .active_prize_quantity,
+                      )
+
                     const expectedQuantity =
                       programQuantity
                       - activeDebtQuantity
+                      - activePrizeQuantity
 
                     const difference =
                       actualQuantity
@@ -548,14 +539,11 @@ export function InventoryPage() {
 
                     const isSaving =
                       savingProductId
-                      === balance
-                        .product_id
+                      === balance.product_id
 
                     return (
                       <tr
-                        key={
-                          balance.id
-                        }
+                        key={balance.id}
                         className="transition hover:bg-slate-900/70"
                       >
                         <td className="px-5 py-4">
@@ -598,28 +586,35 @@ export function InventoryPage() {
                             }
                             onChange={(
                               event,
-                            ) =>
+                            ) => {
                               handleDraftChange(
                                 balance
                                   .product_id,
-
                                 'programQuantity',
-
                                 event
-                                  .target
+                                  .currentTarget
                                   .value,
                               )
-                            }
+                            }}
                             className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
                           />
                         </td>
 
                         <td className="px-5 py-4 font-medium text-amber-400">
-                          {activeDebtQuantity
-                            > 0
+                          {activeDebtQuantity > 0
                             ? (
                                 `−${formatQuantity(
                                   activeDebtQuantity,
+                                )}`
+                              )
+                            : '—'}
+                        </td>
+
+                        <td className="px-5 py-4 font-medium text-violet-400">
+                          {activePrizeQuantity > 0
+                            ? (
+                                `−${formatQuantity(
+                                  activePrizeQuantity,
                                 )}`
                               )
                             : '—'}
@@ -643,33 +638,29 @@ export function InventoryPage() {
                             }
                             onChange={(
                               event,
-                            ) =>
+                            ) => {
                               handleDraftChange(
                                 balance
                                   .product_id,
-
                                 'actualQuantity',
-
                                 event
-                                  .target
+                                  .currentTarget
                                   .value,
                               )
-                            }
+                            }}
                             className="w-28 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-white outline-none transition focus:border-cyan-500"
                           />
                         </td>
 
                         <td
                           className={
-                            difference
-                            < 0
+                            difference < 0
                               ? (
                                   'px-5 py-4 '
                                   + 'font-semibold '
                                   + 'text-red-400'
                                 )
-                              : difference
-                                > 0
+                              : difference > 0
                                 ? (
                                     'px-5 py-4 '
                                     + 'font-semibold '
@@ -681,8 +672,7 @@ export function InventoryPage() {
                                   )
                           }
                         >
-                          {difference
-                            > 0
+                          {difference > 0
                             ? '+'
                             : ''}
 
@@ -707,9 +697,7 @@ export function InventoryPage() {
                                 balance,
                               )
                             }}
-                            disabled={
-                              isSaving
-                            }
+                            disabled={isSaving}
                             className="rounded-lg bg-cyan-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {isSaving
@@ -728,11 +716,10 @@ export function InventoryPage() {
                   === 0 && (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={10}
                         className="px-6 py-12 text-center text-slate-500"
                       >
-                        Активных товаров
-                        пока нет
+                        Активных товаров пока нет
                       </td>
                     </tr>
                   )}

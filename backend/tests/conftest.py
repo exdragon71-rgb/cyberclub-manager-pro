@@ -17,6 +17,7 @@ from app.models.lightshell_import import (
     LightShellInventoryImport,
     LightShellProductMapping,
 )
+from app.models.prize import Prize
 from app.models.product import Product
 
 
@@ -70,21 +71,31 @@ def clear_database(
     session.execute(
         delete(LightShellProductMapping)
     )
+
     session.execute(
         delete(LightShellInventoryImport)
     )
+
+    session.execute(
+        delete(Prize)
+    )
+
     session.execute(
         delete(Debt)
     )
+
     session.execute(
         delete(InventoryBalance)
     )
+
     session.execute(
         delete(Product)
     )
+
     session.execute(
         delete(Employee)
     )
+
     session.commit()
 
 

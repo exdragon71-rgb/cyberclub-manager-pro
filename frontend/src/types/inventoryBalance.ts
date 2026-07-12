@@ -6,7 +6,9 @@ export interface InventoryBalance {
 
   program_quantity: string
   actual_quantity: string
+
   active_debt_quantity: string
+  active_prize_quantity: string
 
   created_at: string
   updated_at: string

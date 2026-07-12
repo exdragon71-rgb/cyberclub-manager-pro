@@ -19,6 +19,12 @@ import type {
   LightShellImportResolution,
 } from '../types/lightshellImport'
 import type {
+  Prize,
+  PrizeCreate,
+  PrizeStatus,
+  PrizeUpdate,
+} from '../types/prize'
+import type {
   Product,
   ProductCreate,
   ProductUpdate,
@@ -310,6 +316,69 @@ export function payDebt(
 ): Promise<Debt> {
   return apiRequest<Debt>(
     `/debts/${debtId}/pay`,
+    {
+      method: 'POST',
+    },
+  )
+}
+
+export function getPrizes(
+  status?: PrizeStatus,
+): Promise<Prize[]> {
+  const query = new URLSearchParams()
+
+  if (status) {
+    query.set(
+      'status',
+      status,
+    )
+  }
+
+  const queryString = query.toString()
+
+  return apiRequest<Prize[]>(
+    `/prizes${queryString ? `?${queryString}` : ''}`,
+  )
+}
+
+export function getPrize(
+  prizeId: string,
+): Promise<Prize> {
+  return apiRequest<Prize>(
+    `/prizes/${prizeId}`,
+  )
+}
+
+export function createPrize(
+  prize: PrizeCreate,
+): Promise<Prize> {
+  return apiRequest<Prize>(
+    '/prizes',
+    {
+      method: 'POST',
+      body: JSON.stringify(prize),
+    },
+  )
+}
+
+export function updatePrize(
+  prizeId: string,
+  prize: PrizeUpdate,
+): Promise<Prize> {
+  return apiRequest<Prize>(
+    `/prizes/${prizeId}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(prize),
+    },
+  )
+}
+
+export function confirmPrizeReflected(
+  prizeId: string,
+): Promise<Prize> {
+  return apiRequest<Prize>(
+    `/prizes/${prizeId}/confirm-reflected`,
     {
       method: 'POST',
     },

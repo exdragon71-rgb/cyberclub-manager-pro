@@ -3,100 +3,252 @@ import {
   useEffect,
   useState,
 } from 'react'
+import { Link } from 'react-router-dom'
 
 import {
   getDatabaseHealth,
+  getDebts,
+  getInventoryBalances,
+  getPrizes,
   getProducts,
   type DatabaseHealth,
 } from './api/client'
 
+import type { Debt } from './types/debt'
+import type {
+  InventoryBalance,
+} from './types/inventoryBalance'
+import type { Prize } from './types/prize'
 import type { Product } from './types/product'
 
-
 const navigationItems = [
-  { name: 'Главная', active: true },
-  { name: 'Ревизия', active: false },
-  { name: 'Долги', active: false },
-  { name: 'Лотерейки', active: false },
-  { name: 'Смены', active: false },
-  { name: 'Отчёты', active: false },
-  { name: 'Журнал', active: false },
-  { name: 'Настройки', active: false },
-]
+  {
+    name: 'Главная',
+    path: '/',
+    active: true,
+  },
+  {
+    name: 'Товары',
+    path: '/products',
+    active: false,
+  },
+  {
+    name: 'Ревизия',
+    path: '/inventory',
+    active: false,
+  },
+  {
+    name: 'Сотрудники',
+    path: '/employees',
+    active: false,
+  },
+  {
+    name: 'Долги',
+    path: '/debts',
+    active: false,
+  },
+  {
+    name: 'Лотерейки',
+    path: '/prizes',
+    active: false,
+  },
+  {
+    name: 'Смены',
+    path: null,
+    active: false,
+  },
+  {
+    name: 'Отчёты',
+    path: null,
+    active: false,
+  },
+  {
+    name: 'Журнал',
+    path: null,
+    active: false,
+  },
+  {
+    name: 'Настройки',
+    path: null,
+    active: false,
+  },
+] as const
 
+const quickActions = [
+  {
+    name: 'Добавить товар',
+    path: '/products/new',
+  },
+  {
+    name: 'Добавить долг',
+    path: '/debts',
+  },
+  {
+    name: 'Выдать приз',
+    path: '/prizes',
+  },
+  {
+    name: 'Открыть ревизию',
+    path: '/inventory',
+  },
+] as const
 
 type LoadingStatus =
   | 'loading'
   | 'success'
   | 'error'
 
+function formatPrice(
+  value: number,
+) {
+  return value.toLocaleString(
+    'ru-RU',
+    {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    },
+  )
+}
+
+function formatQuantity(
+  value: number,
+) {
+  return value.toLocaleString(
+    'ru-RU',
+    {
+      maximumFractionDigits: 3,
+    },
+  )
+}
 
 function App() {
-  const [databaseHealth, setDatabaseHealth] =
-    useState<DatabaseHealth | null>(null)
+  const [
+    databaseHealth,
+    setDatabaseHealth,
+  ] = useState<DatabaseHealth | null>(
+    null,
+  )
 
-  const [products, setProducts] =
-    useState<Product[]>([])
+  const [
+    products,
+    setProducts,
+  ] = useState<Product[]>([])
 
-  const [loadingStatus, setLoadingStatus] =
-    useState<LoadingStatus>('loading')
+  const [
+    debts,
+    setDebts,
+  ] = useState<Debt[]>([])
 
-  const [errorMessage, setErrorMessage] =
-    useState('')
+  const [
+    prizes,
+    setPrizes,
+  ] = useState<Prize[]>([])
 
+  const [
+    balances,
+    setBalances,
+  ] = useState<InventoryBalance[]>([])
 
-  const loadDashboard = useCallback(async () => {
-    
-    
+  const [
+    loadingStatus,
+    setLoadingStatus,
+  ] = useState<LoadingStatus>(
+    'loading',
+  )
 
-    try {
-      const [
-        databaseResponse,
-        productsResponse,
-      ] = await Promise.all([
-        getDatabaseHealth(),
-        getProducts(),
-      ])
+  const [
+    errorMessage,
+    setErrorMessage,
+  ] = useState('')
 
-      setDatabaseHealth(databaseResponse)
-      setProducts(productsResponse)
-      setLoadingStatus('success')
-    } catch (error) {
-      setDatabaseHealth(null)
-      setProducts([])
-      setLoadingStatus('error')
+  const loadDashboard =
+    useCallback(async () => {
+      try {
+        const [
+          databaseResponse,
+          productsResponse,
+          debtsResponse,
+          prizesResponse,
+          balancesResponse,
+        ] = await Promise.all([
+          getDatabaseHealth(),
+          getProducts(),
+          getDebts(),
+          getPrizes(),
+          getInventoryBalances(),
+        ])
 
-      if (error instanceof Error) {
-        setErrorMessage(error.message)
-      } else {
-        setErrorMessage(
-          'Не удалось подключиться к backend',
+        setDatabaseHealth(
+          databaseResponse,
         )
-      }
-    }
-  }, [])
 
+        setProducts(
+          productsResponse,
+        )
+
+        setDebts(
+          debtsResponse,
+        )
+
+        setPrizes(
+          prizesResponse,
+        )
+
+        setBalances(
+          balancesResponse,
+        )
+
+        setErrorMessage('')
+
+        setLoadingStatus(
+          'success',
+        )
+      } catch (error) {
+        setDatabaseHealth(null)
+        setProducts([])
+        setDebts([])
+        setPrizes([])
+        setBalances([])
+
+        setLoadingStatus(
+          'error',
+        )
+
+        if (error instanceof Error) {
+          setErrorMessage(
+            error.message,
+          )
+        } else {
+          setErrorMessage(
+            'Не удалось подключиться к backend',
+          )
+        }
+      }
+    }, [])
 
   useEffect(() => {
-  const timeoutId = window.setTimeout(() => {
-    void loadDashboard()
-  }, 0)
+    const timeoutId =
+      window.setTimeout(() => {
+        void loadDashboard()
+      }, 0)
 
-  return () => {
-    window.clearTimeout(timeoutId)
-  }
+    return () => {
+      window.clearTimeout(
+        timeoutId,
+      )
+    }
   }, [loadDashboard])
-  
-  
-
 
   const databaseIsConnected =
     loadingStatus === 'success'
     && databaseHealth?.status === 'ok'
 
-
   const databaseStatusText = (() => {
-    if (loadingStatus === 'loading') {
+    if (
+      loadingStatus === 'loading'
+    ) {
       return 'Проверка подключения...'
     }
 
@@ -107,61 +259,214 @@ function App() {
     return 'Нет подключения'
   })()
 
+  const activeDebts =
+    debts.filter(
+      (debt) =>
+        debt.status === 'active',
+    )
+
+  const activeDebtAmount =
+    activeDebts.reduce(
+      (
+        total,
+        debt,
+      ) =>
+        total
+        + Number(
+          debt.total_amount,
+        ),
+      0,
+    )
+
+  const activePrizes =
+    prizes.filter(
+      (prize) =>
+        prize.status === 'active',
+    )
+
+  const activePrizeQuantity =
+    activePrizes.reduce(
+      (
+        total,
+        prize,
+      ) =>
+        total
+        + Number(
+          prize.quantity,
+        ),
+      0,
+    )
+
+  const unexplainedLosses =
+    balances.reduce(
+      (
+        total,
+        balance,
+      ) => {
+        const programQuantity =
+          Number(
+            balance.program_quantity,
+          )
+
+        const actualQuantity =
+          Number(
+            balance.actual_quantity,
+          )
+
+        const activeDebtQuantity =
+          Number(
+            balance.active_debt_quantity,
+          )
+
+        const activePrizeQuantityForProduct =
+          Number(
+            balance.active_prize_quantity,
+          )
+
+        const expectedQuantity =
+          programQuantity
+          - activeDebtQuantity
+          - activePrizeQuantityForProduct
+
+        const difference =
+          actualQuantity
+          - expectedQuantity
+
+        const missingQuantity =
+          difference < 0
+            ? Math.abs(
+                difference,
+              )
+            : 0
+
+        return (
+          total
+          + missingQuantity
+          * Number(
+            balance.product.price,
+          )
+        )
+      },
+      0,
+    )
 
   const dashboardCards = [
     {
       title: 'Активные товары',
+
       value:
         loadingStatus === 'loading'
           ? '...'
-          : String(products.length),
-      description: 'Товары в PostgreSQL',
+          : String(
+              products.length,
+            ),
+
+      description:
+        'Товары в PostgreSQL',
     },
     {
       title: 'Активные долги',
-      value: '0 ₽',
-      description: 'Модуль в разработке',
+
+      value:
+        loadingStatus === 'loading'
+          ? '...'
+          : formatPrice(
+              activeDebtAmount,
+            ),
+
+      description:
+        `${activeDebts.length} активных записей`,
     },
     {
       title: 'Лотерейки',
-      value: '0 ₽',
-      description: 'Модуль в разработке',
+
+      value:
+        loadingStatus === 'loading'
+          ? '...'
+          : formatQuantity(
+              activePrizeQuantity,
+            ),
+
+      description:
+        `${activePrizes.length} не учтено в LightShell`,
     },
     {
       title: 'Недостача',
-      value: '0 ₽',
-      description: 'Модуль в разработке',
+
+      value:
+        loadingStatus === 'loading'
+          ? '...'
+          : formatPrice(
+              unexplainedLosses,
+            ),
+
+      description:
+        'После учёта долгов и призов',
     },
   ]
-
 
   const recentActions = [
     {
-      action: databaseIsConnected
-        ? 'Frontend подключён к FastAPI'
-        : 'Ожидание подключения к FastAPI',
+      action:
+        databaseIsConnected
+          ? 'Frontend подключён к FastAPI'
+          : 'Ожидание подключения к FastAPI',
+
       user: 'System',
       date: 'Сегодня',
-      status: databaseIsConnected
-        ? 'Готово'
-        : 'Проверка',
+
+      status:
+        databaseIsConnected
+          ? 'Готово'
+          : 'Проверка',
     },
     {
-      action: `Загружено товаров: ${products.length}`,
+      action:
+        `Загружено товаров: ${products.length}`,
+
       user: 'PostgreSQL',
       date: 'Сегодня',
-      status: databaseIsConnected
-        ? 'Готово'
-        : 'Ожидание',
+
+      status:
+        databaseIsConnected
+          ? 'Готово'
+          : 'Ожидание',
     },
     {
-      action: 'Настроены автоматические тесты',
-      user: 'GitHub Actions',
+      action:
+        `Активных долгов: ${activeDebts.length}`,
+
+      user: 'Модуль долгов',
       date: 'Сегодня',
-      status: 'Готово',
+
+      status:
+        databaseIsConnected
+          ? 'Готово'
+          : 'Ожидание',
+    },
+    {
+      action:
+        `Активных лотереек: ${activePrizes.length}`,
+
+      user: 'Модуль лотереек',
+      date: 'Сегодня',
+
+      status:
+        databaseIsConnected
+          ? 'Готово'
+          : 'Ожидание',
     },
   ]
 
+  function handleRefresh() {
+    setLoadingStatus(
+      'loading',
+    )
+
+    setErrorMessage('')
+
+    void loadDashboard()
+  }
 
   return (
     <div className="min-h-screen bg-[#070a10] text-slate-100">
@@ -182,20 +487,66 @@ function App() {
           </div>
 
           <nav className="flex-1 space-y-2 px-4 py-6">
-            {navigationItems.map((item) => (
-              <button
-                key={item.name}
-                type="button"
-                className={[
-                  'w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition',
+            {navigationItems.map(
+              (item) => {
+                const className = [
+                  'block w-full rounded-xl px-4 py-3 text-left text-sm font-medium transition',
+
                   item.active
-                    ? 'bg-cyan-500/15 text-cyan-300 ring-1 ring-cyan-400/30'
-                    : 'text-slate-400 hover:bg-slate-800/70 hover:text-white',
-                ].join(' ')}
-              >
-                {item.name}
-              </button>
-            ))}
+                    ? (
+                        'bg-cyan-500/15 '
+                        + 'text-cyan-300 '
+                        + 'ring-1 '
+                        + 'ring-cyan-400/30'
+                      )
+                    : (
+                        'text-slate-400 '
+                        + 'hover:bg-slate-800/70 '
+                        + 'hover:text-white'
+                      ),
+
+                  item.path
+                    ? ''
+                    : (
+                        'cursor-not-allowed '
+                        + 'opacity-40'
+                      ),
+                ].join(' ')
+
+                if (item.path) {
+                  return (
+                    <Link
+                      key={
+                        item.name
+                      }
+                      to={
+                        item.path
+                      }
+                      className={
+                        className
+                      }
+                    >
+                      {item.name}
+                    </Link>
+                  )
+                }
+
+                return (
+                  <button
+                    key={
+                      item.name
+                    }
+                    type="button"
+                    disabled
+                    className={
+                      className
+                    }
+                  >
+                    {item.name}
+                  </button>
+                )
+              },
+            )}
           </nav>
 
           <div className="border-t border-slate-800 p-4">
@@ -208,8 +559,13 @@ function App() {
                 <span
                   className={[
                     'h-2.5 w-2.5 rounded-full',
-                    loadingStatus === 'loading'
-                      ? 'animate-pulse bg-amber-400'
+
+                    loadingStatus
+                    === 'loading'
+                      ? (
+                          'animate-pulse '
+                          + 'bg-amber-400'
+                        )
                       : databaseIsConnected
                         ? 'bg-emerald-400'
                         : 'bg-red-400',
@@ -217,13 +573,18 @@ function App() {
                 />
 
                 <span className="text-xs text-slate-400">
-                  {databaseStatusText}
+                  {
+                    databaseStatusText
+                  }
                 </span>
               </div>
 
               {databaseHealth && (
                 <p className="mt-2 truncate text-xs text-slate-600">
-                  {databaseHealth.database}
+                  {
+                    databaseHealth
+                      .database
+                  }
                 </p>
               )}
             </div>
@@ -242,65 +603,63 @@ function App() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-               setLoadingStatus('loading')
-               setErrorMessage('')
-               void loadDashboard()
-              }}
-                  
-                
-                disabled={loadingStatus === 'loading'}
-                className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-wait disabled:opacity-50"
-              >
-                {loadingStatus === 'loading'
-                  ? 'Загрузка...'
-                  : 'Обновить'}
-              </button>
-
-              <button
-                type="button"
-                className="rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400"
-              >
-                Открыть смену
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={
+                handleRefresh
+              }
+              disabled={
+                loadingStatus
+                === 'loading'
+              }
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-slate-500 hover:text-white disabled:cursor-wait disabled:opacity-50"
+            >
+              {loadingStatus
+                === 'loading'
+                ? 'Загрузка...'
+                : 'Обновить'}
+            </button>
           </header>
 
           <div className="space-y-8 p-8">
-            {loadingStatus === 'error' && (
-              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
-                <p className="font-semibold text-red-300">
-                  Backend недоступен
-                </p>
+            {loadingStatus
+              === 'error' && (
+                <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-5 py-4">
+                  <p className="font-semibold text-red-300">
+                    Backend недоступен
+                  </p>
 
-                <p className="mt-1 text-sm text-red-300/70">
-                  {errorMessage}
-                </p>
-              </div>
-            )}
+                  <p className="mt-1 text-sm text-red-300/70">
+                    {errorMessage}
+                  </p>
+                </div>
+              )}
 
             <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {dashboardCards.map((card) => (
-                <article
-                  key={card.title}
-                  className="rounded-2xl border border-slate-800 bg-[#0d131d] p-5 shadow-lg shadow-black/10"
-                >
-                  <p className="text-sm font-medium text-slate-400">
-                    {card.title}
-                  </p>
+              {dashboardCards.map(
+                (card) => (
+                  <article
+                    key={
+                      card.title
+                    }
+                    className="rounded-2xl border border-slate-800 bg-[#0d131d] p-5 shadow-lg shadow-black/10"
+                  >
+                    <p className="text-sm font-medium text-slate-400">
+                      {card.title}
+                    </p>
 
-                  <p className="mt-4 text-3xl font-bold text-white">
-                    {card.value}
-                  </p>
+                    <p className="mt-4 text-3xl font-bold text-white">
+                      {card.value}
+                    </p>
 
-                  <p className="mt-2 text-sm text-slate-500">
-                    {card.description}
-                  </p>
-                </article>
-              ))}
+                    <p className="mt-2 text-sm text-slate-500">
+                      {
+                        card.description
+                      }
+                    </p>
+                  </article>
+                ),
+              )}
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
@@ -308,20 +667,13 @@ function App() {
                 <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
                   <div>
                     <h3 className="text-lg font-semibold text-white">
-                      Последние действия
+                      Состояние системы
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Состояние модулей системы
+                      Загруженные модули
                     </p>
                   </div>
-
-                  <button
-                    type="button"
-                    className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
-                  >
-                    Открыть журнал
-                  </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -347,37 +699,57 @@ function App() {
                     </thead>
 
                     <tbody className="divide-y divide-slate-800">
-                      {recentActions.map((item) => (
-                        <tr
-                          key={item.action}
-                          className="transition hover:bg-slate-800/30"
-                        >
-                          <td className="px-6 py-4 text-sm font-medium text-slate-200">
-                            {item.action}
-                          </td>
+                      {recentActions.map(
+                        (item) => (
+                          <tr
+                            key={
+                              item.action
+                            }
+                            className="transition hover:bg-slate-800/30"
+                          >
+                            <td className="px-6 py-4 text-sm font-medium text-slate-200">
+                              {
+                                item.action
+                              }
+                            </td>
 
-                          <td className="px-6 py-4 text-sm text-slate-400">
-                            {item.user}
-                          </td>
+                            <td className="px-6 py-4 text-sm text-slate-400">
+                              {
+                                item.user
+                              }
+                            </td>
 
-                          <td className="px-6 py-4 text-sm text-slate-400">
-                            {item.date}
-                          </td>
+                            <td className="px-6 py-4 text-sm text-slate-400">
+                              {
+                                item.date
+                              }
+                            </td>
 
-                          <td className="px-6 py-4">
-                            <span
-                              className={[
-                                'rounded-full px-3 py-1 text-xs font-semibold',
-                                item.status === 'Готово'
-                                  ? 'bg-emerald-500/10 text-emerald-400'
-                                  : 'bg-amber-500/10 text-amber-400',
-                              ].join(' ')}
-                            >
-                              {item.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                            <td className="px-6 py-4">
+                              <span
+                                className={[
+                                  'rounded-full px-3 py-1 text-xs font-semibold',
+
+                                  item.status
+                                  === 'Готово'
+                                    ? (
+                                        'bg-emerald-500/10 '
+                                        + 'text-emerald-400'
+                                      )
+                                    : (
+                                        'bg-amber-500/10 '
+                                        + 'text-amber-400'
+                                      ),
+                                ].join(' ')}
+                              >
+                                {
+                                  item.status
+                                }
+                              </span>
+                            </td>
+                          </tr>
+                        ),
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -393,20 +765,23 @@ function App() {
                 </p>
 
                 <div className="mt-6 space-y-3">
-                  {[
-                    'Добавить товар',
-                    'Добавить долг',
-                    'Выдать приз',
-                    'Открыть ревизию',
-                  ].map((action) => (
-                    <button
-                      key={action}
-                      type="button"
-                      className="w-full rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:border-cyan-500/40 hover:bg-cyan-500/10 hover:text-cyan-300"
-                    >
-                      {action}
-                    </button>
-                  ))}
+                  {quickActions.map(
+                    (action) => (
+                      <Link
+                        key={
+                          action.name
+                        }
+                        to={
+                          action.path
+                        }
+                        className="block w-full rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:border-cyan-500/40 hover:bg-cyan-500/10 hover:text-cyan-300"
+                      >
+                        {
+                          action.name
+                        }
+                      </Link>
+                    ),
+                  )}
                 </div>
               </article>
             </section>
@@ -416,6 +791,5 @@ function App() {
     </div>
   )
 }
-
 
 export default App

@@ -2,7 +2,11 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+)
 
 from app.schemas.product import ProductRead
 
@@ -33,6 +37,12 @@ class InventoryBalanceRead(BaseModel):
     actual_quantity: Decimal
 
     active_debt_quantity: Decimal = Field(
+        default=Decimal("0"),
+        ge=0,
+        decimal_places=3,
+    )
+
+    active_prize_quantity: Decimal = Field(
         default=Decimal("0"),
         ge=0,
         decimal_places=3,

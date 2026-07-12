@@ -5,6 +5,7 @@ from app.models.lightshell_import import (
     LightShellInventoryImport,
     LightShellProductMapping,
 )
+from app.models.prize import Prize
 from app.models.product import Product
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "InventoryBalance",
     "LightShellInventoryImport",
     "LightShellProductMapping",
+    "Prize",
     "Product",
 ]

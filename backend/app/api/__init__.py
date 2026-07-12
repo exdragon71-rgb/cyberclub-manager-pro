@@ -6,6 +6,7 @@ from app.api.inventory_balances import (
 from app.api.lightshell_imports import (
     router as lightshell_imports_router,
 )
+from app.api.prizes import router as prizes_router
 from app.api.products import router as products_router
 
 __all__ = [
@@ -13,5 +14,6 @@ __all__ = [
     "employees_router",
     "inventory_balances_router",
     "lightshell_imports_router",
+    "prizes_router",
     "products_router",
 ]

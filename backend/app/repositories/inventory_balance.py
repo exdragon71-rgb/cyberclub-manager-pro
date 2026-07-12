@@ -3,10 +3,16 @@ from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import (
+    Session,
+    selectinload,
+)
 
 from app.models.debt import Debt
-from app.models.inventory_balance import InventoryBalance
+from app.models.inventory_balance import (
+    InventoryBalance,
+)
+from app.models.prize import Prize
 from app.models.product import Product
 from app.schemas.inventory_balance import (
     InventoryBalanceUpdate,
@@ -28,7 +34,29 @@ class InventoryBalanceRepository:
                 == InventoryBalance.product_id,
                 Debt.status == "active",
             )
-            .correlate(InventoryBalance)
+            .correlate(
+                InventoryBalance
+            )
+            .scalar_subquery()
+        )
+
+    @staticmethod
+    def active_prize_quantity_query():
+        return (
+            select(
+                func.coalesce(
+                    func.sum(Prize.quantity),
+                    0,
+                )
+            )
+            .where(
+                Prize.product_id
+                == InventoryBalance.product_id,
+                Prize.status == "active",
+            )
+            .correlate(
+                InventoryBalance
+            )
             .scalar_subquery()
         )
 
@@ -42,21 +70,35 @@ class InventoryBalanceRepository:
     ) -> list[InventoryBalance]:
         active_debt_quantity = (
             self.active_debt_quantity_query()
-            .label("active_debt_quantity")
+            .label(
+                "active_debt_quantity"
+            )
+        )
+
+        active_prize_quantity = (
+            self.active_prize_quantity_query()
+            .label(
+                "active_prize_quantity"
+            )
         )
 
         statement = (
             select(
                 InventoryBalance,
                 active_debt_quantity,
+                active_prize_quantity,
             )
-            .join(InventoryBalance.product)
+            .join(
+                InventoryBalance.product
+            )
             .options(
                 selectinload(
                     InventoryBalance.product
                 )
             )
-            .order_by(Product.name)
+            .order_by(
+                Product.name
+            )
         )
 
         if not include_inactive:
@@ -70,16 +112,30 @@ class InventoryBalanceRepository:
             limit
         )
 
-        rows = db.execute(statement).all()
+        rows = db.execute(
+            statement
+        ).all()
 
-        balances: list[InventoryBalance] = []
+        balances: list[
+            InventoryBalance
+        ] = []
 
-        for balance, debt_quantity in rows:
+        for (
+            balance,
+            debt_quantity,
+            prize_quantity,
+        ) in rows:
             balance.active_debt_quantity = (
                 debt_quantity
             )
 
-            balances.append(balance)
+            balance.active_prize_quantity = (
+                prize_quantity
+            )
+
+            balances.append(
+                balance
+            )
 
         return balances
 
@@ -90,13 +146,23 @@ class InventoryBalanceRepository:
     ) -> InventoryBalance | None:
         active_debt_quantity = (
             self.active_debt_quantity_query()
-            .label("active_debt_quantity")
+            .label(
+                "active_debt_quantity"
+            )
+        )
+
+        active_prize_quantity = (
+            self.active_prize_quantity_query()
+            .label(
+                "active_prize_quantity"
+            )
         )
 
         statement = (
             select(
                 InventoryBalance,
                 active_debt_quantity,
+                active_prize_quantity,
             )
             .options(
                 selectinload(
@@ -116,10 +182,18 @@ class InventoryBalanceRepository:
         if row is None:
             return None
 
-        balance, debt_quantity = row
+        (
+            balance,
+            debt_quantity,
+            prize_quantity,
+        ) = row
 
         balance.active_debt_quantity = (
             debt_quantity
+        )
+
+        balance.active_prize_quantity = (
+            prize_quantity
         )
 
         return balance
@@ -128,7 +202,10 @@ class InventoryBalanceRepository:
         self,
         db: Session,
         product_ids: Collection[UUID],
-    ) -> dict[UUID, InventoryBalance]:
+    ) -> dict[
+        UUID,
+        InventoryBalance,
+    ]:
         if not product_ids:
             return {}
 
@@ -141,7 +218,9 @@ class InventoryBalanceRepository:
         )
 
         balances = list(
-            db.scalars(statement).all()
+            db.scalars(
+                statement
+            ).all()
         )
 
         return {
@@ -158,7 +237,10 @@ class InventoryBalanceRepository:
             product_id=product_id,
         )
 
-        db.add(balance)
+        db.add(
+            balance
+        )
+
         db.flush()
 
         return balance
@@ -169,8 +251,10 @@ class InventoryBalanceRepository:
         balance: InventoryBalance,
         balance_data: InventoryBalanceUpdate,
     ) -> InventoryBalance:
-        update_data = balance_data.model_dump(
-            exclude_unset=True
+        update_data = (
+            balance_data.model_dump(
+                exclude_unset=True
+            )
         )
 
         for (
