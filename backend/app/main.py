@@ -7,6 +7,7 @@ from app.api import (
     debts_router,
     employees_router,
     inventory_balances_router,
+    lightshell_imports_router,
     products_router,
 )
 from app.core.config import settings
@@ -36,6 +37,7 @@ app.include_router(products_router)
 app.include_router(inventory_balances_router)
 app.include_router(employees_router)
 app.include_router(debts_router)
+app.include_router(lightshell_imports_router)
 
 
 @app.get(

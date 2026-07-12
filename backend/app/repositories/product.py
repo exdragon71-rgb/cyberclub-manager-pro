@@ -16,14 +16,39 @@ class ProductRepository:
         limit: int = 100,
         include_inactive: bool = False,
     ) -> list[Product]:
-        statement = select(Product).order_by(Product.name)
+        statement = select(Product).order_by(
+            Product.name
+        )
 
         if not include_inactive:
             statement = statement.where(
                 Product.is_active.is_(True)
             )
 
-        statement = statement.offset(offset).limit(limit)
+        statement = statement.offset(
+            offset
+        ).limit(
+            limit
+        )
+
+        return list(
+            db.scalars(statement).all()
+        )
+
+    def get_all_for_matching(
+        self,
+        db: Session,
+        *,
+        include_inactive: bool = False,
+    ) -> list[Product]:
+        statement = select(Product).order_by(
+            Product.name
+        )
+
+        if not include_inactive:
+            statement = statement.where(
+                Product.is_active.is_(True)
+            )
 
         return list(
             db.scalars(statement).all()
@@ -48,7 +73,8 @@ class ProductRepository:
         normalized_name = name.strip().lower()
 
         statement = select(Product).where(
-            func.lower(Product.name) == normalized_name
+            func.lower(Product.name)
+            == normalized_name
         )
 
         return db.scalar(statement)
@@ -61,7 +87,8 @@ class ProductRepository:
         normalized_id = lightshell_id.strip()
 
         statement = select(Product).where(
-            Product.lightshell_id == normalized_id
+            Product.lightshell_id
+            == normalized_id
         )
 
         return db.scalar(statement)
@@ -75,7 +102,9 @@ class ProductRepository:
             name=product_data.name.strip(),
             price=product_data.price,
             unit=product_data.unit.strip(),
-            minimum_stock=product_data.minimum_stock,
+            minimum_stock=(
+                product_data.minimum_stock
+            ),
             lightshell_id=(
                 product_data.lightshell_id.strip()
                 if product_data.lightshell_id
@@ -99,13 +128,19 @@ class ProductRepository:
         )
 
         if "name" in update_data:
-            update_data["name"] = update_data["name"].strip()
+            update_data["name"] = (
+                update_data["name"].strip()
+            )
 
         if "unit" in update_data:
-            update_data["unit"] = update_data["unit"].strip()
+            update_data["unit"] = (
+                update_data["unit"].strip()
+            )
 
         if "lightshell_id" in update_data:
-            lightshell_id = update_data["lightshell_id"]
+            lightshell_id = update_data[
+                "lightshell_id"
+            ]
 
             update_data["lightshell_id"] = (
                 lightshell_id.strip()
@@ -113,8 +148,15 @@ class ProductRepository:
                 else None
             )
 
-        for field_name, field_value in update_data.items():
-            setattr(product, field_name, field_value)
+        for (
+            field_name,
+            field_value,
+        ) in update_data.items():
+            setattr(
+                product,
+                field_name,
+                field_value,
+            )
 
         db.flush()
 

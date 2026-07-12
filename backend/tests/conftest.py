@@ -13,6 +13,10 @@ from app.main import app
 from app.models.debt import Debt
 from app.models.employee import Employee
 from app.models.inventory_balance import InventoryBalance
+from app.models.lightshell_import import (
+    LightShellInventoryImport,
+    LightShellProductMapping,
+)
 from app.models.product import Product
 
 
@@ -60,41 +64,41 @@ def prepare_test_database() -> Generator[None, None, None]:
     )
 
 
+def clear_database(
+    session: Session,
+) -> None:
+    session.execute(
+        delete(LightShellProductMapping)
+    )
+    session.execute(
+        delete(LightShellInventoryImport)
+    )
+    session.execute(
+        delete(Debt)
+    )
+    session.execute(
+        delete(InventoryBalance)
+    )
+    session.execute(
+        delete(Product)
+    )
+    session.execute(
+        delete(Employee)
+    )
+    session.commit()
+
+
 @pytest.fixture(
     autouse=True,
 )
 def clean_test_database() -> Generator[None, None, None]:
     with TestingSessionLocal() as session:
-        session.execute(
-            delete(Debt)
-        )
-        session.execute(
-            delete(InventoryBalance)
-        )
-        session.execute(
-            delete(Product)
-        )
-        session.execute(
-            delete(Employee)
-        )
-        session.commit()
+        clear_database(session)
 
     yield
 
     with TestingSessionLocal() as session:
-        session.execute(
-            delete(Debt)
-        )
-        session.execute(
-            delete(InventoryBalance)
-        )
-        session.execute(
-            delete(Product)
-        )
-        session.execute(
-            delete(Employee)
-        )
-        session.commit()
+        clear_database(session)
 
 
 @pytest.fixture
