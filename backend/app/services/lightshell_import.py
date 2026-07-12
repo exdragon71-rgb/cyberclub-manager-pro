@@ -1,4 +1,5 @@
 from collections import defaultdict
+from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
@@ -6,16 +7,28 @@ from app.integrations.lightshell.normalization import (
     normalize_lightshell_name,
 )
 from app.integrations.lightshell.schemas import (
+    LightShellImportApplyResult,
     LightShellImportPreview,
     LightShellImportPreviewItem,
+    LightShellImportResolution,
     LightShellInventoryDocument,
     LightShellMatchStatus,
+    LightShellResolutionAction,
 )
 from app.models.product import Product
+from app.repositories.inventory_balance import (
+    inventory_balance_repository,
+)
 from app.repositories.lightshell_import import (
     lightshell_import_repository,
 )
 from app.repositories.product import product_repository
+from app.schemas.product import ProductCreate
+from app.services.product import product_service
+
+
+class LightShellImportValidationError(Exception):
+    pass
 
 
 class LightShellImportService:
@@ -168,6 +181,323 @@ class LightShellImportService:
             ambiguous_items=ambiguous_items,
             items=preview_items,
         )
+
+    def apply_import(
+        self,
+        db: Session,
+        *,
+        document: LightShellInventoryDocument,
+        source_filename: str,
+        resolutions: list[
+            LightShellImportResolution
+        ],
+    ) -> LightShellImportApplyResult:
+        normalized_filename = (
+            source_filename.strip()
+        )
+
+        if not normalized_filename:
+            raise LightShellImportValidationError(
+                "Название исходного файла "
+                "не может быть пустым."
+            )
+
+        document_items = {
+            item.source_number: item
+            for item in document.items
+        }
+
+        resolutions_by_number: dict[
+            int,
+            LightShellImportResolution,
+        ] = {}
+
+        for resolution in resolutions:
+            source_number = (
+                resolution.source_number
+            )
+
+            if source_number in resolutions_by_number:
+                raise LightShellImportValidationError(
+                    "Для позиции №"
+                    f"{source_number} передано "
+                    "несколько решений."
+                )
+
+            if source_number not in document_items:
+                raise LightShellImportValidationError(
+                    "В PDF отсутствует позиция №"
+                    f"{source_number}."
+                )
+
+            resolutions_by_number[
+                source_number
+            ] = resolution
+
+        missing_numbers = sorted(
+            set(document_items)
+            - set(resolutions_by_number)
+        )
+
+        if missing_numbers:
+            missing_text = ", ".join(
+                str(number)
+                for number in missing_numbers[:10]
+            )
+
+            if len(missing_numbers) > 10:
+                missing_text += ", ..."
+
+            raise LightShellImportValidationError(
+                "Не указано решение для позиций: "
+                f"{missing_text}."
+            )
+
+        resolved_products: dict[
+            int,
+            Product,
+        ] = {}
+
+        used_product_ids = set()
+
+        created_products = 0
+        skipped_items = 0
+        created_mappings = 0
+        updated_items = 0
+
+        try:
+            for item in document.items:
+                resolution = (
+                    resolutions_by_number[
+                        item.source_number
+                    ]
+                )
+
+                if (
+                    resolution.action
+                    == LightShellResolutionAction.SKIP
+                ):
+                    skipped_items += 1
+                    continue
+
+                if (
+                    resolution.action
+                    == (
+                        LightShellResolutionAction
+                        .USE_EXISTING
+                    )
+                ):
+                    if resolution.product_id is None:
+                        raise (
+                            LightShellImportValidationError(
+                                "Для позиции №"
+                                f"{item.source_number} "
+                                "не указан товар."
+                            )
+                        )
+
+                    product = (
+                        product_repository.get_by_id(
+                            db,
+                            resolution.product_id,
+                        )
+                    )
+
+                    if product is None:
+                        raise (
+                            LightShellImportValidationError(
+                                "Товар для позиции №"
+                                f"{item.source_number} "
+                                "не найден."
+                            )
+                        )
+
+                    if not product.is_active:
+                        raise (
+                            LightShellImportValidationError(
+                                "Товар для позиции №"
+                                f"{item.source_number} "
+                                "находится в архиве."
+                            )
+                        )
+
+                elif (
+                    resolution.action
+                    == (
+                        LightShellResolutionAction
+                        .CREATE_NEW
+                    )
+                ):
+                    product = (
+                        product_service
+                        .create_in_transaction(
+                            db,
+                            ProductCreate(
+                                name=item.name,
+                                price=Decimal("0"),
+                                unit="шт.",
+                                minimum_stock=(
+                                    Decimal("0")
+                                ),
+                                lightshell_id=None,
+                            ),
+                        )
+                    )
+
+                    created_products += 1
+
+                else:
+                    raise (
+                        LightShellImportValidationError(
+                            "Неизвестное действие "
+                            "для позиции №"
+                            f"{item.source_number}."
+                        )
+                    )
+
+                if product.id in used_product_ids:
+                    raise (
+                        LightShellImportValidationError(
+                            "Один товар приложения "
+                            "нельзя связать сразу "
+                            "с несколькими позициями PDF."
+                        )
+                    )
+
+                used_product_ids.add(
+                    product.id
+                )
+
+                resolved_products[
+                    item.source_number
+                ] = product
+
+            balances = (
+                inventory_balance_repository
+                .get_by_product_ids(
+                    db,
+                    {
+                        product.id
+                        for product
+                        in resolved_products.values()
+                    },
+                )
+            )
+
+            for item in document.items:
+                product = resolved_products.get(
+                    item.source_number
+                )
+
+                if product is None:
+                    continue
+
+                balance = balances.get(
+                    product.id
+                )
+
+                if balance is None:
+                    raise (
+                        LightShellImportValidationError(
+                            "Для товара "
+                            f"«{product.name}» "
+                            "не найдены остатки."
+                        )
+                    )
+
+                (
+                    inventory_balance_repository
+                    .update_program_quantity(
+                        db,
+                        balance,
+                        item.program_quantity,
+                    )
+                )
+
+                normalized_source_name = (
+                    normalize_lightshell_name(
+                        item.name
+                    )
+                )
+
+                (
+                    _,
+                    mapping_was_created,
+                ) = (
+                    lightshell_import_repository
+                    .create_or_update_mapping(
+                        db,
+                        source_name=item.name,
+                        normalized_source_name=(
+                            normalized_source_name
+                        ),
+                        source_category=(
+                            item.category
+                        ),
+                        product_id=product.id,
+                    )
+                )
+
+                if mapping_was_created:
+                    created_mappings += 1
+
+                updated_items += 1
+
+            import_record = (
+                lightshell_import_repository
+                .create_import_record(
+                    db,
+                    branch=document.branch,
+                    generated_at=(
+                        document.generated_at
+                    ),
+                    source_filename=(
+                        normalized_filename
+                    ),
+                    total_items=len(
+                        document.items
+                    ),
+                    matched_items=(
+                        updated_items
+                        - created_products
+                    ),
+                    created_items=(
+                        created_products
+                    ),
+                    unresolved_items=(
+                        skipped_items
+                    ),
+                )
+            )
+
+            db.commit()
+            db.refresh(import_record)
+
+            return LightShellImportApplyResult(
+                import_id=import_record.id,
+                branch=import_record.branch,
+                generated_at=(
+                    import_record.generated_at
+                ),
+                source_filename=(
+                    import_record.source_filename
+                ),
+                total_items=(
+                    import_record.total_items
+                ),
+                updated_items=updated_items,
+                created_products=(
+                    created_products
+                ),
+                skipped_items=skipped_items,
+                created_mappings=(
+                    created_mappings
+                ),
+            )
+
+        except Exception:
+            db.rollback()
+            raise
 
 
 lightshell_import_service = (

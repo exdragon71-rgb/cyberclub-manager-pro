@@ -14,6 +14,11 @@ import type {
   InventoryBalanceUpdate,
 } from '../types/inventoryBalance'
 import type {
+  LightShellImportApplyResult,
+  LightShellImportPreview,
+  LightShellImportResolution,
+} from '../types/lightshellImport'
+import type {
   Product,
   ProductCreate,
   ProductUpdate,
@@ -29,13 +34,25 @@ async function apiRequest<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
+  const headers = new Headers(options?.headers)
+
+  if (
+    !(options?.body instanceof FormData)
+    && !headers.has('Content-Type')
+  ) {
+    headers.set(
+      'Content-Type',
+      'application/json',
+    )
+  }
+
+  const response = await fetch(
+    `${API_BASE_URL}${path}`,
+    {
+      ...options,
+      headers,
     },
-  })
+  )
 
   if (!response.ok) {
     let message = `Ошибка сервера: ${response.status}`
@@ -92,10 +109,13 @@ export function getProduct(
 export function createProduct(
   product: ProductCreate,
 ): Promise<Product> {
-  return apiRequest<Product>('/products', {
-    method: 'POST',
-    body: JSON.stringify(product),
-  })
+  return apiRequest<Product>(
+    '/products',
+    {
+      method: 'POST',
+      body: JSON.stringify(product),
+    },
+  )
 }
 
 export function updateProduct(
@@ -189,10 +209,13 @@ export function getEmployee(
 export function createEmployee(
   employee: EmployeeCreate,
 ): Promise<Employee> {
-  return apiRequest<Employee>('/employees', {
-    method: 'POST',
-    body: JSON.stringify(employee),
-  })
+  return apiRequest<Employee>(
+    '/employees',
+    {
+      method: 'POST',
+      body: JSON.stringify(employee),
+    },
+  )
 }
 
 export function updateEmployee(
@@ -236,7 +259,10 @@ export function getDebts(
   const query = new URLSearchParams()
 
   if (status) {
-    query.set('status', status)
+    query.set(
+      'status',
+      status,
+    )
   }
 
   const queryString = query.toString()
@@ -257,10 +283,13 @@ export function getDebt(
 export function createDebt(
   debt: DebtCreate,
 ): Promise<Debt> {
-  return apiRequest<Debt>('/debts', {
-    method: 'POST',
-    body: JSON.stringify(debt),
-  })
+  return apiRequest<Debt>(
+    '/debts',
+    {
+      method: 'POST',
+      body: JSON.stringify(debt),
+    },
+  )
 }
 
 export function updateDebt(
@@ -283,6 +312,50 @@ export function payDebt(
     `/debts/${debtId}/pay`,
     {
       method: 'POST',
+    },
+  )
+}
+
+export function previewLightShellImport(
+  file: File,
+): Promise<LightShellImportPreview> {
+  const formData = new FormData()
+
+  formData.append(
+    'file',
+    file,
+  )
+
+  return apiRequest<LightShellImportPreview>(
+    '/lightshell-imports/preview',
+    {
+      method: 'POST',
+      body: formData,
+    },
+  )
+}
+
+export function applyLightShellImport(
+  file: File,
+  resolutions: LightShellImportResolution[],
+): Promise<LightShellImportApplyResult> {
+  const formData = new FormData()
+
+  formData.append(
+    'file',
+    file,
+  )
+
+  formData.append(
+    'resolutions_json',
+    JSON.stringify(resolutions),
+  )
+
+  return apiRequest<LightShellImportApplyResult>(
+    '/lightshell-imports/apply',
+    {
+      method: 'POST',
+      body: formData,
     },
   )
 }

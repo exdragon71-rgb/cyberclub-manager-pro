@@ -1,9 +1,14 @@
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import (
+    BaseModel,
+    Field,
+    model_validator,
+)
 
 
 class LightShellInventoryItem(BaseModel):
@@ -110,3 +115,81 @@ class LightShellImportPreview(BaseModel):
     )
 
     items: list[LightShellImportPreviewItem]
+
+
+class LightShellResolutionAction(StrEnum):
+    USE_EXISTING = "use_existing"
+    CREATE_NEW = "create_new"
+    SKIP = "skip"
+
+
+class LightShellImportResolution(BaseModel):
+    source_number: int = Field(
+        ge=1,
+    )
+
+    action: LightShellResolutionAction
+
+    product_id: UUID | None = None
+
+    @model_validator(
+        mode="after",
+    )
+    def validate_product_id(self) -> Self:
+        if (
+            self.action
+            == LightShellResolutionAction.USE_EXISTING
+            and self.product_id is None
+        ):
+            raise ValueError(
+                "Для существующего товара "
+                "необходимо указать product_id."
+            )
+
+        if (
+            self.action
+            != LightShellResolutionAction.USE_EXISTING
+            and self.product_id is not None
+        ):
+            raise ValueError(
+                "product_id можно указывать "
+                "только для существующего товара."
+            )
+
+        return self
+
+
+class LightShellImportApplyResult(BaseModel):
+    import_id: UUID
+
+    branch: str = Field(
+        min_length=1,
+        max_length=255,
+    )
+
+    generated_at: datetime
+
+    source_filename: str = Field(
+        min_length=1,
+        max_length=255,
+    )
+
+    total_items: int = Field(
+        ge=0,
+    )
+
+    updated_items: int = Field(
+        ge=0,
+    )
+
+    created_products: int = Field(
+        ge=0,
+    )
+
+    skipped_items: int = Field(
+        ge=0,
+    )
+
+    created_mappings: int = Field(
+        ge=0,
+    )

@@ -1,3 +1,5 @@
+from collections.abc import Collection
+from decimal import Decimal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -62,14 +64,21 @@ class InventoryBalanceRepository:
                 Product.is_active.is_(True)
             )
 
-        statement = statement.offset(offset).limit(limit)
+        statement = statement.offset(
+            offset
+        ).limit(
+            limit
+        )
 
         rows = db.execute(statement).all()
 
         balances: list[InventoryBalance] = []
 
         for balance, debt_quantity in rows:
-            balance.active_debt_quantity = debt_quantity
+            balance.active_debt_quantity = (
+                debt_quantity
+            )
+
             balances.append(balance)
 
         return balances
@@ -100,15 +109,45 @@ class InventoryBalanceRepository:
             )
         )
 
-        row = db.execute(statement).one_or_none()
+        row = db.execute(
+            statement
+        ).one_or_none()
 
         if row is None:
             return None
 
         balance, debt_quantity = row
-        balance.active_debt_quantity = debt_quantity
+
+        balance.active_debt_quantity = (
+            debt_quantity
+        )
 
         return balance
+
+    def get_by_product_ids(
+        self,
+        db: Session,
+        product_ids: Collection[UUID],
+    ) -> dict[UUID, InventoryBalance]:
+        if not product_ids:
+            return {}
+
+        statement = select(
+            InventoryBalance
+        ).where(
+            InventoryBalance.product_id.in_(
+                product_ids
+            )
+        )
+
+        balances = list(
+            db.scalars(statement).all()
+        )
+
+        return {
+            balance.product_id: balance
+            for balance in balances
+        }
 
     def create_for_product(
         self,
@@ -134,12 +173,29 @@ class InventoryBalanceRepository:
             exclude_unset=True
         )
 
-        for field_name, field_value in update_data.items():
+        for (
+            field_name,
+            field_value,
+        ) in update_data.items():
             setattr(
                 balance,
                 field_name,
                 field_value,
             )
+
+        db.flush()
+
+        return balance
+
+    def update_program_quantity(
+        self,
+        db: Session,
+        balance: InventoryBalance,
+        program_quantity: Decimal,
+    ) -> InventoryBalance:
+        balance.program_quantity = (
+            program_quantity
+        )
 
         db.flush()
 

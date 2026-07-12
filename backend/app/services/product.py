@@ -12,7 +12,10 @@ from app.repositories.product import (
     ProductRepository,
     product_repository,
 )
-from app.schemas.product import ProductCreate, ProductUpdate
+from app.schemas.product import (
+    ProductCreate,
+    ProductUpdate,
+)
 
 
 class ProductNotFoundError(Exception):
@@ -68,7 +71,7 @@ class ProductService:
 
         return product
 
-    def create(
+    def create_in_transaction(
         self,
         db: Session,
         product_data: ProductCreate,
@@ -92,46 +95,70 @@ class ProductService:
                 "Единица измерения не может быть пустой."
             )
 
-        existing_product = self.repository.get_by_name(
-            db,
-            name,
+        existing_product = (
+            self.repository.get_by_name(
+                db,
+                name,
+            )
         )
 
         if existing_product is not None:
             raise ProductAlreadyExistsError(
-                f"Товар с названием '{name}' уже существует."
+                f"Товар с названием "
+                f"'{name}' уже существует."
             )
 
         if lightshell_id is not None:
             existing_lightshell_product = (
-                self.repository.get_by_lightshell_id(
+                self.repository
+                .get_by_lightshell_id(
                     db,
                     lightshell_id,
                 )
             )
 
-            if existing_lightshell_product is not None:
+            if (
+                existing_lightshell_product
+                is not None
+            ):
                 raise ProductAlreadyExistsError(
-                    "Товар с таким LightShell ID уже существует."
+                    "Товар с таким LightShell ID "
+                    "уже существует."
                 )
 
-        normalized_data = product_data.model_copy(
-            update={
-                "name": name,
-                "unit": unit,
-                "lightshell_id": lightshell_id,
-            }
+        normalized_data = (
+            product_data.model_copy(
+                update={
+                    "name": name,
+                    "unit": unit,
+                    "lightshell_id": (
+                        lightshell_id
+                    ),
+                }
+            )
         )
 
-        try:
-            product = self.repository.create(
-                db,
-                normalized_data,
-            )
+        product = self.repository.create(
+            db,
+            normalized_data,
+        )
 
-            self.balance_repository.create_for_product(
+        self.balance_repository.create_for_product(
+            db,
+            product.id,
+        )
+
+        return product
+
+    def create(
+        self,
+        db: Session,
+        product_data: ProductCreate,
+    ) -> Product:
+        try:
+            product = self.create_in_transaction(
                 db,
-                product.id,
+                product_data,
             )
 
             db.commit()
@@ -144,7 +171,8 @@ class ProductService:
 
             raise ProductAlreadyExistsError(
                 "Не удалось создать товар: "
-                "название или LightShell ID уже используются."
+                "название или LightShell ID "
+                "уже используются."
             ) from error
 
         except Exception:
@@ -167,85 +195,115 @@ class ProductService:
         if "name" in product_data.model_fields_set:
             if product_data.name is None:
                 raise ProductValidationError(
-                    "Название товара не может быть пустым."
+                    "Название товара "
+                    "не может быть пустым."
                 )
 
-            normalized_name = product_data.name.strip()
+            normalized_name = (
+                product_data.name.strip()
+            )
 
             if not normalized_name:
                 raise ProductValidationError(
-                    "Название товара не может быть пустым."
+                    "Название товара "
+                    "не может быть пустым."
                 )
 
-            existing_product = self.repository.get_by_name(
-                db,
-                normalized_name,
+            existing_product = (
+                self.repository.get_by_name(
+                    db,
+                    normalized_name,
+                )
             )
 
             if (
                 existing_product is not None
-                and existing_product.id != product.id
+                and existing_product.id
+                != product.id
             ):
                 raise ProductAlreadyExistsError(
                     f"Товар с названием "
-                    f"'{normalized_name}' уже существует."
+                    f"'{normalized_name}' "
+                    "уже существует."
                 )
 
-            normalized_updates["name"] = normalized_name
+            normalized_updates["name"] = (
+                normalized_name
+            )
 
         if "unit" in product_data.model_fields_set:
             if product_data.unit is None:
                 raise ProductValidationError(
-                    "Единица измерения не может быть пустой."
+                    "Единица измерения "
+                    "не может быть пустой."
                 )
 
-            normalized_unit = product_data.unit.strip()
+            normalized_unit = (
+                product_data.unit.strip()
+            )
 
             if not normalized_unit:
                 raise ProductValidationError(
-                    "Единица измерения не может быть пустой."
+                    "Единица измерения "
+                    "не может быть пустой."
                 )
 
-            normalized_updates["unit"] = normalized_unit
+            normalized_updates["unit"] = (
+                normalized_unit
+            )
 
-        if "lightshell_id" in product_data.model_fields_set:
+        if (
+            "lightshell_id"
+            in product_data.model_fields_set
+        ):
             normalized_lightshell_id = (
                 product_data.lightshell_id.strip()
                 if product_data.lightshell_id
                 else None
             )
 
-            if normalized_lightshell_id is not None:
+            if (
+                normalized_lightshell_id
+                is not None
+            ):
                 existing_lightshell_product = (
-                    self.repository.get_by_lightshell_id(
+                    self.repository
+                    .get_by_lightshell_id(
                         db,
                         normalized_lightshell_id,
                     )
                 )
 
                 if (
-                    existing_lightshell_product is not None
-                    and existing_lightshell_product.id
-                    != product.id
+                    existing_lightshell_product
+                    is not None
+                    and (
+                        existing_lightshell_product.id
+                        != product.id
+                    )
                 ):
                     raise ProductAlreadyExistsError(
-                        "Товар с таким LightShell ID "
-                        "уже существует."
+                        "Товар с таким "
+                        "LightShell ID уже существует."
                     )
 
-            normalized_updates["lightshell_id"] = (
-                normalized_lightshell_id
-            )
+            normalized_updates[
+                "lightshell_id"
+            ] = normalized_lightshell_id
 
-        normalized_data = product_data.model_copy(
-            update=normalized_updates
+        normalized_data = (
+            product_data.model_copy(
+                update=normalized_updates
+            )
         )
 
         try:
-            updated_product = self.repository.update(
-                db,
-                product,
-                normalized_data,
+            updated_product = (
+                self.repository.update(
+                    db,
+                    product,
+                    normalized_data,
+                )
             )
 
             db.commit()
@@ -258,7 +316,8 @@ class ProductService:
 
             raise ProductAlreadyExistsError(
                 "Не удалось изменить товар: "
-                "название или LightShell ID уже используются."
+                "название или LightShell ID "
+                "уже используются."
             ) from error
 
         except Exception:
@@ -283,10 +342,12 @@ class ProductService:
         )
 
         try:
-            archived_product = self.repository.update(
-                db,
-                product,
-                archive_data,
+            archived_product = (
+                self.repository.update(
+                    db,
+                    product,
+                    archive_data,
+                )
             )
 
             db.commit()
@@ -316,10 +377,12 @@ class ProductService:
         )
 
         try:
-            restored_product = self.repository.update(
-                db,
-                product,
-                restore_data,
+            restored_product = (
+                self.repository.update(
+                    db,
+                    product,
+                    restore_data,
+                )
             )
 
             db.commit()
@@ -334,5 +397,7 @@ class ProductService:
 
 product_service = ProductService(
     repository=product_repository,
-    balance_repository=inventory_balance_repository,
+    balance_repository=(
+        inventory_balance_repository
+    ),
 )

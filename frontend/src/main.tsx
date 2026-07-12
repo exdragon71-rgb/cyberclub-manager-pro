@@ -14,6 +14,7 @@ import { DebtsPage } from './pages/DebtsPage.tsx'
 import { EditProductPage } from './pages/EditProductPage.tsx'
 import { EmployeesPage } from './pages/EmployeesPage.tsx'
 import { InventoryPage } from './pages/InventoryPage.tsx'
+import { LightShellImportPage } from './pages/LightShellImportPage.tsx'
 import { ProductsPage } from './pages/ProductsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
@@ -40,6 +41,11 @@ createRoot(document.getElementById('root')!).render(
         <Route
           path="/inventory"
           element={<InventoryPage />}
+        />
+
+        <Route
+          path="/inventory/import"
+          element={<LightShellImportPage />}
         />
 
         <Route
