@@ -7,11 +7,15 @@ import {
 import { Link } from 'react-router-dom'
 
 import {
+  getClubSettings,
   getDebts,
   getInventoryBalances,
   getPrizes,
 } from '../api/client'
 
+import type {
+  ClubSetting,
+} from '../types/clubSetting'
 import type { Debt } from '../types/debt'
 import type {
   InventoryBalance,
@@ -132,6 +136,21 @@ function formatFilenameDate(
   )
 }
 
+function formatReportDate(
+  value: Date,
+) {
+  return value.toLocaleString(
+    'ru-RU',
+    {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  )
+}
+
 function getDifferenceStatus(
   difference: number,
 ) {
@@ -200,6 +219,13 @@ export function ReportsPage() {
   ] = useState<Prize[]>([])
 
   const [
+    clubSettings,
+    setClubSettings,
+  ] = useState<ClubSetting | null>(
+    null,
+  )
+
+  const [
     differenceFilter,
     setDifferenceFilter,
   ] = useState<DifferenceFilter>(
@@ -225,10 +251,12 @@ export function ReportsPage() {
           balancesResponse,
           debtsResponse,
           prizesResponse,
+          settingsResponse,
         ] = await Promise.all([
           getInventoryBalances(),
           getDebts(),
           getPrizes(),
+          getClubSettings(),
         ])
 
         setBalances(
@@ -243,12 +271,17 @@ export function ReportsPage() {
           prizesResponse,
         )
 
+        setClubSettings(
+          settingsResponse,
+        )
+
         setErrorMessage('')
         setLoadingStatus('success')
       } catch (error) {
         setBalances([])
         setDebts([])
         setPrizes([])
+        setClubSettings(null)
 
         setLoadingStatus('error')
 
@@ -276,6 +309,14 @@ export function ReportsPage() {
       )
     }
   }, [loadReport])
+
+  const clubName =
+    clubSettings?.club_name.trim()
+    || 'CyberClub'
+
+  const clubBranch =
+    clubSettings?.branch.trim()
+    || '#1'
 
   const reportRows =
     useMemo<ReportRow[]>(
@@ -592,9 +633,12 @@ export function ReportsPage() {
   }
 
   async function handleDownloadXlsx() {
+    const generatedAt =
+      new Date()
+
     const filenameDate =
       formatFilenameDate(
-        new Date(),
+        generatedAt,
       )
 
     const filterFilenamePart =
@@ -610,6 +654,20 @@ export function ReportsPage() {
       ),
 
       sheetName: 'Отчёт по ревизии',
+
+      title:
+        `${clubName} · ${clubBranch}`,
+
+      subtitleLines: [
+        'Отчёт по ревизии',
+
+        (
+          'Сформирован: '
+          + formatReportDate(
+            generatedAt,
+          )
+        ),
+      ],
 
       columns: [
         {
@@ -747,7 +805,13 @@ export function ReportsPage() {
               Отчёты
             </h1>
 
-            <p className="mt-2 text-sm text-slate-400">
+            <p className="mt-2 text-sm font-medium text-cyan-400">
+              {clubName}
+              {' · '}
+              {clubBranch}
+            </p>
+
+            <p className="mt-1 text-sm text-slate-400">
               Расхождения, недостачи,
               долги и неучтённые призы
             </p>

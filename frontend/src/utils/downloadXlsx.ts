@@ -23,6 +23,9 @@ interface DownloadXlsxOptions<Row> {
   filename: string
   sheetName: string
 
+  title?: string
+  subtitleLines?: string[]
+
   columns: XlsxColumn<Row>[]
   rows: Row[]
 }
@@ -30,6 +33,8 @@ interface DownloadXlsxOptions<Row> {
 export async function downloadXlsx<Row>({
   filename,
   sheetName,
+  title,
+  subtitleLines = [],
   columns,
   rows,
 }: DownloadXlsxOptions<Row>) {
@@ -54,14 +59,6 @@ export async function downloadXlsx<Row>({
   const worksheet =
     workbook.addWorksheet(
       sheetName,
-      {
-        views: [
-          {
-            state: 'frozen',
-            ySplit: 1,
-          },
-        ],
-      },
     )
 
   worksheet.columns =
@@ -73,16 +70,89 @@ export async function downloadXlsx<Row>({
         key:
           `column_${columnIndex}`,
 
-        header:
-          column.header,
-
         width:
           column.width,
       }),
     )
 
+  const metadataLines = [
+    ...(title ? [title] : []),
+    ...subtitleLines,
+  ]
+
+  metadataLines.forEach(
+    (
+      line,
+      lineIndex,
+    ) => {
+      const metadataRow =
+        worksheet.addRow([
+          line,
+        ])
+
+      if (columns.length > 1) {
+        worksheet.mergeCells(
+          metadataRow.number,
+          1,
+          metadataRow.number,
+          columns.length,
+        )
+      }
+
+      const metadataCell =
+        metadataRow.getCell(1)
+
+      metadataCell.alignment = {
+        vertical: 'middle',
+        horizontal: 'left',
+      }
+
+      if (lineIndex === 0 && title) {
+        metadataRow.height = 30
+
+        metadataCell.font = {
+          bold: true,
+          size: 16,
+
+          color: {
+            argb: 'FF0F172A',
+          },
+        }
+      } else {
+        metadataRow.height = 22
+
+        metadataCell.font = {
+          size: 11,
+
+          color: {
+            argb: 'FF475569',
+          },
+        }
+      }
+    },
+  )
+
+  if (metadataLines.length > 0) {
+    worksheet.addRow([])
+  }
+
   const headerRow =
-    worksheet.getRow(1)
+    worksheet.addRow(
+      columns.map(
+        (column) =>
+          column.header,
+      ),
+    )
+
+  const headerRowNumber =
+    headerRow.number
+
+  worksheet.views = [
+    {
+      state: 'frozen',
+      ySplit: headerRowNumber,
+    },
+  ]
 
   headerRow.height = 30
 
@@ -220,12 +290,12 @@ export async function downloadXlsx<Row>({
   if (columns.length > 0) {
     worksheet.autoFilter = {
       from: {
-        row: 1,
+        row: headerRowNumber,
         column: 1,
       },
 
       to: {
-        row: 1,
+        row: headerRowNumber,
         column:
           columns.length,
       },
