@@ -18,6 +18,7 @@ import { InventoryPage } from './pages/InventoryPage.tsx'
 import { LightShellImportPage } from './pages/LightShellImportPage.tsx'
 import { PrizesPage } from './pages/PrizesPage.tsx'
 import { ProductsPage } from './pages/ProductsPage.tsx'
+import { ReportsPage } from './pages/ReportsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -63,6 +64,11 @@ createRoot(document.getElementById('root')!).render(
         <Route
           path="/prizes"
           element={<PrizesPage />}
+        />
+
+        <Route
+          path="/reports"
+          element={<ReportsPage />}
         />
 
         <Route

@@ -60,9 +60,9 @@ const navigationItems = [
     active: false,
   },
   {
-    name: 'Отчёты',
-    path: null,
-    active: false,
+  name: 'Отчёты',
+  path: '/reports',
+  active: false,
   },
   {
     name: 'Журнал',
@@ -103,10 +103,6 @@ const entityLabels: Record<string, string> = {
   inventory_balance: 'Ревизия',
   lightshell_import: 'LightShell',
 }
-  
-  
-  
-  
 
 const eventLabels: Record<string, string> = {
   product_created: 'Товар добавлен',
