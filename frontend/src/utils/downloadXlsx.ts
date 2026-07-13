@@ -1,5 +1,3 @@
-import ExcelJS from 'exceljs'
-
 export interface XlsxColumn<Row> {
   header: string
   width: number
@@ -35,6 +33,12 @@ export async function downloadXlsx<Row>({
   columns,
   rows,
 }: DownloadXlsxOptions<Row>) {
+  const excelJsModule =
+    await import('exceljs')
+
+  const ExcelJS =
+    excelJsModule.default
+
   const workbook =
     new ExcelJS.Workbook()
 
@@ -86,6 +90,7 @@ export async function downloadXlsx<Row>({
     (cell) => {
       cell.font = {
         bold: true,
+
         color: {
           argb: 'FFFFFFFF',
         },
@@ -109,6 +114,7 @@ export async function downloadXlsx<Row>({
       cell.border = {
         top: {
           style: 'thin',
+
           color: {
             argb: 'FF334155',
           },
@@ -116,6 +122,7 @@ export async function downloadXlsx<Row>({
 
         left: {
           style: 'thin',
+
           color: {
             argb: 'FF334155',
           },
@@ -123,6 +130,7 @@ export async function downloadXlsx<Row>({
 
         bottom: {
           style: 'thin',
+
           color: {
             argb: 'FF334155',
           },
@@ -130,6 +138,7 @@ export async function downloadXlsx<Row>({
 
         right: {
           style: 'thin',
+
           color: {
             argb: 'FF334155',
           },
