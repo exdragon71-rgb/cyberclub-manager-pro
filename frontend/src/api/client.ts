@@ -1,7 +1,11 @@
 import type {
-   ActionLog,
+  ActionLog,
   ActionLogFilters,
 } from '../types/actionLog'
+import type {
+  ClubSetting,
+  ClubSettingUpdate,
+} from '../types/clubSetting'
 import type {
   Debt,
   DebtCreate,
@@ -44,7 +48,9 @@ async function apiRequest<T>(
   path: string,
   options?: RequestInit,
 ): Promise<T> {
-  const headers = new Headers(options?.headers)
+  const headers = new Headers(
+    options?.headers,
+  )
 
   if (
     !(options?.body instanceof FormData)
@@ -65,7 +71,8 @@ async function apiRequest<T>(
   )
 
   if (!response.ok) {
-    let message = `Ошибка сервера: ${response.status}`
+    let message =
+      `Ошибка сервера: ${response.status}`
 
     try {
       const errorBody =
@@ -90,7 +97,8 @@ export interface DatabaseHealth {
   user: string
 }
 
-export function getDatabaseHealth(): Promise<DatabaseHealth> {
+export function getDatabaseHealth():
+Promise<DatabaseHealth> {
   return apiRequest<DatabaseHealth>(
     '/health/database',
   )
@@ -100,7 +108,9 @@ export function getProducts(
   includeInactive = false,
 ): Promise<Product[]> {
   const query = new URLSearchParams({
-    include_inactive: String(includeInactive),
+    include_inactive: String(
+      includeInactive,
+    ),
   })
 
   return apiRequest<Product[]>(
@@ -167,7 +177,9 @@ export function getInventoryBalances(
   includeInactive = false,
 ): Promise<InventoryBalance[]> {
   const query = new URLSearchParams({
-    include_inactive: String(includeInactive),
+    include_inactive: String(
+      includeInactive,
+    ),
   })
 
   return apiRequest<InventoryBalance[]>(
@@ -200,7 +212,9 @@ export function getEmployees(
   includeInactive = false,
 ): Promise<Employee[]> {
   const query = new URLSearchParams({
-    include_inactive: String(includeInactive),
+    include_inactive: String(
+      includeInactive,
+    ),
   })
 
   return apiRequest<Employee[]>(
@@ -275,7 +289,8 @@ export function getDebts(
     )
   }
 
-  const queryString = query.toString()
+  const queryString =
+    query.toString()
 
   return apiRequest<Debt[]>(
     `/debts${queryString ? `?${queryString}` : ''}`,
@@ -338,7 +353,8 @@ export function getPrizes(
     )
   }
 
-  const queryString = query.toString()
+  const queryString =
+    query.toString()
 
   return apiRequest<Prize[]>(
     `/prizes${queryString ? `?${queryString}` : ''}`,
@@ -432,6 +448,7 @@ export function applyLightShellImport(
     },
   )
 }
+
 export function getActionLogs(
   filters: ActionLogFilters = {},
 ): Promise<ActionLog[]> {
@@ -465,9 +482,29 @@ export function getActionLogs(
     )
   }
 
-  const queryString = query.toString()
+  const queryString =
+    query.toString()
 
   return apiRequest<ActionLog[]>(
     `/action-logs${queryString ? `?${queryString}` : ''}`,
+  )
+}
+
+export function getClubSettings():
+Promise<ClubSetting> {
+  return apiRequest<ClubSetting>(
+    '/club-settings',
+  )
+}
+
+export function updateClubSettings(
+  settings: ClubSettingUpdate,
+): Promise<ClubSetting> {
+  return apiRequest<ClubSetting>(
+    '/club-settings',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(settings),
+    },
   )
 }

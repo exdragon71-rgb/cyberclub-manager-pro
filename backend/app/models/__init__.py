@@ -1,4 +1,5 @@
 from app.models.action_log import ActionLog
+from app.models.club_setting import ClubSetting
 from app.models.debt import Debt
 from app.models.employee import Employee
 from app.models.inventory_balance import InventoryBalance
@@ -11,6 +12,7 @@ from app.models.product import Product
 
 __all__ = [
     "ActionLog",
+    "ClubSetting",
     "Debt",
     "Employee",
     "InventoryBalance",

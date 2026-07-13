@@ -19,6 +19,7 @@ import { LightShellImportPage } from './pages/LightShellImportPage.tsx'
 import { PrizesPage } from './pages/PrizesPage.tsx'
 import { ProductsPage } from './pages/ProductsPage.tsx'
 import { ReportsPage } from './pages/ReportsPage.tsx'
+import { SettingsPage } from './pages/SettingsPage.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -74,6 +75,11 @@ createRoot(document.getElementById('root')!).render(
         <Route
           path="/action-logs"
           element={<ActionLogsPage />}
+        />
+
+        <Route
+          path="/settings"
+          element={<SettingsPage />}
         />
 
         <Route

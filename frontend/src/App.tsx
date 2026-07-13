@@ -70,10 +70,10 @@ const navigationItems = [
     active: false,
   },
   {
-    name: 'Настройки',
-    path: null,
-    active: false,
-  },
+  name: 'Настройки',
+  path: '/settings',
+  active: false,
+},
 ] as const
 
 const quickActions = [

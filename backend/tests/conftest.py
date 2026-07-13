@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
 from app.models.action_log import ActionLog
+from app.models.club_setting import ClubSetting
 from app.models.debt import Debt
 from app.models.employee import Employee
 from app.models.inventory_balance import InventoryBalance
@@ -99,6 +100,10 @@ def clear_database(
 
     session.execute(
         delete(Employee)
+    )
+
+    session.execute(
+        delete(ClubSetting)
     )
 
     session.commit()
