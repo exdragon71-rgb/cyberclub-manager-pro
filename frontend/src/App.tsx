@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 
 import {
   getActionLogs,
+  getClubSettings,
   getDatabaseHealth,
   getDebts,
   getInventoryBalances,
@@ -16,6 +17,9 @@ import {
 } from './api/client'
 
 import type { ActionLog } from './types/actionLog'
+import type {
+  ClubSetting,
+} from './types/clubSetting'
 import type { Debt } from './types/debt'
 import type {
   InventoryBalance,
@@ -60,9 +64,9 @@ const navigationItems = [
     active: false,
   },
   {
-  name: 'Отчёты',
-  path: '/reports',
-  active: false,
+    name: 'Отчёты',
+    path: '/reports',
+    active: false,
   },
   {
     name: 'Журнал',
@@ -70,11 +74,12 @@ const navigationItems = [
     active: false,
   },
   {
-  name: 'Настройки',
-  path: '/settings',
-  active: false,
-},
+    name: 'Настройки',
+    path: '/settings',
+    active: false,
+  },
 ] as const
+
 
 const quickActions = [
   {
@@ -102,6 +107,7 @@ const entityLabels: Record<string, string> = {
   prize: 'Лотерейки',
   inventory_balance: 'Ревизия',
   lightshell_import: 'LightShell',
+  club_setting: 'Настройки',
 }
 
 const eventLabels: Record<string, string> = {
@@ -126,6 +132,8 @@ const eventLabels: Record<string, string> = {
   inventory_balance_updated: 'Остатки изменены',
 
   lightshell_import_applied: 'Импорт LightShell',
+
+  club_setting_updated: 'Настройки изменены',
 }
 
 type LoadingStatus =
@@ -179,6 +187,13 @@ function App() {
   )
 
   const [
+    clubSettings,
+    setClubSettings,
+  ] = useState<ClubSetting | null>(
+    null,
+  )
+
+  const [
     products,
     setProducts,
   ] = useState<Product[]>([])
@@ -220,6 +235,7 @@ function App() {
       try {
         const [
           databaseResponse,
+          clubSettingsResponse,
           productsResponse,
           debtsResponse,
           prizesResponse,
@@ -227,6 +243,7 @@ function App() {
           actionLogsResponse,
         ] = await Promise.all([
           getDatabaseHealth(),
+          getClubSettings(),
           getProducts(),
           getDebts(),
           getPrizes(),
@@ -238,6 +255,10 @@ function App() {
 
         setDatabaseHealth(
           databaseResponse,
+        )
+
+        setClubSettings(
+          clubSettingsResponse,
         )
 
         setProducts(
@@ -267,6 +288,7 @@ function App() {
         )
       } catch (error) {
         setDatabaseHealth(null)
+        setClubSettings(null)
         setProducts([])
         setDebts([])
         setPrizes([])
@@ -319,6 +341,14 @@ function App() {
 
     return 'Нет подключения'
   })()
+
+  const clubName =
+    clubSettings?.club_name
+    ?? 'CyberClub'
+
+  const clubBranch =
+    clubSettings?.branch
+    ?? '#1'
 
   const activeDebts =
     debts.filter(
@@ -481,16 +511,20 @@ function App() {
       <div className="flex min-h-screen">
         <aside className="flex w-64 shrink-0 flex-col border-r border-slate-800 bg-[#0b1018]">
           <div className="border-b border-slate-800 px-6 py-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-400">
-              CyberClub
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400">
+              CyberClub Manager Pro
             </p>
 
-            <h1 className="mt-2 text-xl font-bold text-white">
-              Manager Pro
+            <h1 className="mt-3 text-xl font-bold text-white">
+              {loadingStatus === 'loading'
+                ? 'Загрузка...'
+                : clubName}
             </h1>
 
             <p className="mt-1 text-sm text-slate-500">
-              Control Center
+              {loadingStatus === 'loading'
+                ? 'Получение настроек'
+                : clubBranch}
             </p>
           </div>
 
@@ -581,18 +615,13 @@ function App() {
                 />
 
                 <span className="text-xs text-slate-400">
-                  {
-                    databaseStatusText
-                  }
+                  {databaseStatusText}
                 </span>
               </div>
 
               {databaseHealth && (
                 <p className="mt-2 truncate text-xs text-slate-600">
-                  {
-                    databaseHealth
-                      .database
-                  }
+                  {databaseHealth.database}
                 </p>
               )}
             </div>
@@ -607,7 +636,9 @@ function App() {
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Состояние компьютерного клуба
+                {loadingStatus === 'loading'
+                  ? 'Загрузка данных клуба'
+                  : `${clubName} · ${clubBranch}`}
               </p>
             </div>
 
@@ -661,9 +692,7 @@ function App() {
                     </p>
 
                     <p className="mt-2 text-sm text-slate-500">
-                      {
-                        card.description
-                      }
+                      {card.description}
                     </p>
                   </article>
                 ),
@@ -737,36 +766,28 @@ function App() {
                               className="transition hover:bg-slate-800/30"
                             >
                               <td className="px-6 py-4 text-sm font-medium text-slate-200">
-                                {
-                                  actionLog.message
-                                }
+                                {actionLog.message}
                               </td>
 
                               <td className="px-6 py-4 text-sm text-slate-400">
-                                {
-                                  entityLabels[
-                                    actionLog.entity_type
-                                  ]
-                                  ?? actionLog.entity_type
-                                }
+                                {entityLabels[
+                                  actionLog.entity_type
+                                ]
+                                ?? actionLog.entity_type}
                               </td>
 
                               <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-400">
-                                {
-                                  formatDate(
-                                    actionLog.created_at,
-                                  )
-                                }
+                                {formatDate(
+                                  actionLog.created_at,
+                                )}
                               </td>
 
                               <td className="px-6 py-4">
                                 <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400">
-                                  {
-                                    eventLabels[
-                                      actionLog.event_type
-                                    ]
-                                    ?? actionLog.event_type
-                                  }
+                                  {eventLabels[
+                                    actionLog.event_type
+                                  ]
+                                  ?? actionLog.event_type}
                                 </span>
                               </td>
                             </tr>
@@ -812,9 +833,7 @@ function App() {
                         }
                         className="block w-full rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-left text-sm font-medium text-slate-300 transition hover:border-cyan-500/40 hover:bg-cyan-500/10 hover:text-cyan-300"
                       >
-                        {
-                          action.name
-                        }
+                        {action.name}
                       </Link>
                     ),
                   )}
