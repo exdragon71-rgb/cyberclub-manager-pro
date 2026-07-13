@@ -18,6 +18,10 @@ import type {
 } from '../types/inventoryBalance'
 import type { Prize } from '../types/prize'
 
+import {
+  downloadCsv,
+} from '../utils/downloadCsv'
+
 type LoadingStatus =
   | 'loading'
   | 'success'
@@ -46,6 +50,14 @@ interface ReportRow {
   surplusAmount: number
 }
 
+const filterFilenameParts:
+  Record<DifferenceFilter, string> = {
+    all: 'all',
+    shortage: 'shortage',
+    surplus: 'surplus',
+    matching: 'matching',
+  }
+
 function formatPrice(
   value: number,
 ) {
@@ -71,6 +83,54 @@ function formatQuantity(
   )
 }
 
+
+
+function formatCsvNumber(
+  value: number,
+  maximumFractionDigits = 3,
+) {
+  return value.toLocaleString(
+    'ru-RU',
+    {
+      useGrouping: false,
+      minimumFractionDigits: 0,
+      maximumFractionDigits,
+    },
+  )
+}
+
+function formatFilenameDate(
+  value: Date,
+) {
+  const year =
+    value.getFullYear()
+
+  const month =
+    String(
+      value.getMonth() + 1,
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      value.getDate(),
+    ).padStart(2, '0')
+
+  const hours =
+    String(
+      value.getHours(),
+    ).padStart(2, '0')
+
+  const minutes =
+    String(
+      value.getMinutes(),
+    ).padStart(2, '0')
+
+  return (
+    `${year}-${month}-${day}`
+    + `_${hours}-${minutes}`
+  )
+}
+
 function getDifferenceStatus(
   difference: number,
 ) {
@@ -83,6 +143,20 @@ function getDifferenceStatus(
   }
 
   return 'Сходится'
+}
+
+function getDifferenceAmount(
+  row: ReportRow,
+) {
+  if (row.difference < 0) {
+    return row.shortageAmount
+  }
+
+  if (row.difference > 0) {
+    return row.surplusAmount
+  }
+
+  return 0
 }
 
 function getDifferenceClassName(
@@ -402,6 +476,120 @@ export function ReportsPage() {
     void loadReport()
   }
 
+  function handleDownloadCsv() {
+    const filenameDate =
+      formatFilenameDate(
+        new Date(),
+      )
+
+    const filterFilenamePart =
+      filterFilenameParts[
+        differenceFilter
+      ]
+
+    downloadCsv<ReportRow>({
+      filename: (
+        'cyberclub-report'
+        + `_${filterFilenamePart}`
+        + `_${filenameDate}.csv`
+      ),
+
+      columns: [
+        {
+          header: 'Товар',
+
+          getValue: (row) =>
+            row.productName,
+        },
+        {
+          header: 'Единица',
+
+          getValue: (row) =>
+            row.unit,
+        },
+        {
+          header: 'Цена, руб.',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.price,
+              2,
+            ),
+        },
+        {
+          header: 'По программе',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.programQuantity,
+            ),
+        },
+        {
+          header: 'Активные долги',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.debtQuantity,
+            ),
+        },
+        {
+          header: 'Неучтённые призы',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.prizeQuantity,
+            ),
+        },
+        {
+          header: 'Ожидается',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.expectedQuantity,
+            ),
+        },
+        {
+          header: 'Факт',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.actualQuantity,
+            ),
+        },
+        {
+          header: 'Разница',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              row.difference,
+            ),
+        },
+        {
+          header:
+            'Сумма расхождения, руб.',
+
+          getValue: (row) =>
+            formatCsvNumber(
+              getDifferenceAmount(
+                row,
+              ),
+              2,
+            ),
+        },
+        {
+          header: 'Статус',
+
+          getValue: (row) =>
+            getDifferenceStatus(
+              row.difference,
+            ),
+        },
+      ],
+
+      rows: filteredRows,
+    })
+  }
+
   return (
     <main className="min-h-screen bg-[#070a10] p-6 text-slate-100">
       <div className="mx-auto max-w-[1700px]">
@@ -424,22 +612,40 @@ export function ReportsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={
-              handleRefresh
-            }
-            disabled={
-              loadingStatus
-              === 'loading'
-            }
-            className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {loadingStatus
-              === 'loading'
-                ? 'Загрузка...'
-                : 'Обновить'}
-          </button>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={
+                handleDownloadCsv
+              }
+              disabled={
+                loadingStatus
+                !== 'success'
+                || filteredRows.length
+                === 0
+              }
+              className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Скачать CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={
+                handleRefresh
+              }
+              disabled={
+                loadingStatus
+                === 'loading'
+              }
+              className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2.5 text-sm font-medium text-slate-200 transition hover:border-slate-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingStatus
+                === 'loading'
+                  ? 'Загрузка...'
+                  : 'Обновить'}
+            </button>
+          </div>
         </header>
 
         {errorMessage && (
@@ -588,6 +794,11 @@ export function ReportsPage() {
               Только совпадения
             </option>
           </select>
+
+          <p className="mt-3 text-xs text-slate-500">
+            В CSV попадут позиции,
+            выбранные текущим фильтром.
+          </p>
         </section>
 
         <section className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-[#0b0f17]">
@@ -641,9 +852,9 @@ export function ReportsPage() {
                 {filteredRows.map(
                   (row) => {
                     const differenceAmount =
-                      row.difference < 0
-                        ? row.shortageAmount
-                        : row.surplusAmount
+                      getDifferenceAmount(
+                        row,
+                      )
 
                     return (
                       <tr
@@ -711,6 +922,7 @@ export function ReportsPage() {
                             {row.difference > 0
                               ? '+'
                               : ''}
+
                             {formatQuantity(
                               row.difference,
                             )}
@@ -739,6 +951,7 @@ export function ReportsPage() {
                           <span
                             className={[
                               'rounded-full px-3 py-1 text-xs font-medium',
+
                               getDifferenceClassName(
                                 row.difference,
                               ),
