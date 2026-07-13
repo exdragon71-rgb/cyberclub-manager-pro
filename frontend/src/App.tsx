@@ -6,6 +6,7 @@ import {
 import { Link } from 'react-router-dom'
 
 import {
+  getActionLogs,
   getDatabaseHealth,
   getDebts,
   getInventoryBalances,
@@ -14,6 +15,7 @@ import {
   type DatabaseHealth,
 } from './api/client'
 
+import type { ActionLog } from './types/actionLog'
 import type { Debt } from './types/debt'
 import type {
   InventoryBalance,
@@ -63,14 +65,10 @@ const navigationItems = [
     active: false,
   },
   {
-  name: 'Журнал',
-  path: '/action-logs',
-  active: false,
-},
-   
-   
-    
-  
+    name: 'Журнал',
+    path: '/action-logs',
+    active: false,
+  },
   {
     name: 'Настройки',
     path: null,
@@ -96,6 +94,43 @@ const quickActions = [
     path: '/inventory',
   },
 ] as const
+
+const entityLabels: Record<string, string> = {
+  product: 'Товары',
+  employee: 'Сотрудники',
+  debt: 'Долги',
+  prize: 'Лотерейки',
+  inventory_balance: 'Ревизия',
+  lightshell_import: 'LightShell',
+}
+  
+  
+  
+  
+
+const eventLabels: Record<string, string> = {
+  product_created: 'Товар добавлен',
+  product_updated: 'Товар изменён',
+  product_archived: 'Товар архивирован',
+  product_restored: 'Товар восстановлен',
+
+  employee_created: 'Сотрудник добавлен',
+  employee_updated: 'Сотрудник изменён',
+  employee_archived: 'Сотрудник архивирован',
+  employee_restored: 'Сотрудник восстановлен',
+
+  debt_created: 'Долг добавлен',
+  debt_updated: 'Долг изменён',
+  debt_paid: 'Долг погашен',
+
+  prize_created: 'Приз выдан',
+  prize_updated: 'Приз изменён',
+  prize_reflected: 'Приз учтён',
+
+  inventory_balance_updated: 'Остатки изменены',
+
+  lightshell_import_applied: 'Импорт LightShell',
+}
 
 type LoadingStatus =
   | 'loading'
@@ -123,6 +158,18 @@ function formatQuantity(
     'ru-RU',
     {
       maximumFractionDigits: 3,
+    },
+  )
+}
+
+function formatDate(
+  value: string,
+) {
+  return new Date(value).toLocaleString(
+    'ru-RU',
+    {
+      dateStyle: 'short',
+      timeStyle: 'short',
     },
   )
 }
@@ -156,6 +203,11 @@ function App() {
   ] = useState<InventoryBalance[]>([])
 
   const [
+    actionLogs,
+    setActionLogs,
+  ] = useState<ActionLog[]>([])
+
+  const [
     loadingStatus,
     setLoadingStatus,
   ] = useState<LoadingStatus>(
@@ -176,12 +228,16 @@ function App() {
           debtsResponse,
           prizesResponse,
           balancesResponse,
+          actionLogsResponse,
         ] = await Promise.all([
           getDatabaseHealth(),
           getProducts(),
           getDebts(),
           getPrizes(),
           getInventoryBalances(),
+          getActionLogs({
+            limit: 5,
+          }),
         ])
 
         setDatabaseHealth(
@@ -204,6 +260,10 @@ function App() {
           balancesResponse,
         )
 
+        setActionLogs(
+          actionLogsResponse,
+        )
+
         setErrorMessage('')
 
         setLoadingStatus(
@@ -215,6 +275,7 @@ function App() {
         setDebts([])
         setPrizes([])
         setBalances([])
+        setActionLogs([])
 
         setLoadingStatus(
           'error',
@@ -409,59 +470,6 @@ function App() {
     },
   ]
 
-  const recentActions = [
-    {
-      action:
-        databaseIsConnected
-          ? 'Frontend подключён к FastAPI'
-          : 'Ожидание подключения к FastAPI',
-
-      user: 'System',
-      date: 'Сегодня',
-
-      status:
-        databaseIsConnected
-          ? 'Готово'
-          : 'Проверка',
-    },
-    {
-      action:
-        `Загружено товаров: ${products.length}`,
-
-      user: 'PostgreSQL',
-      date: 'Сегодня',
-
-      status:
-        databaseIsConnected
-          ? 'Готово'
-          : 'Ожидание',
-    },
-    {
-      action:
-        `Активных долгов: ${activeDebts.length}`,
-
-      user: 'Модуль долгов',
-      date: 'Сегодня',
-
-      status:
-        databaseIsConnected
-          ? 'Готово'
-          : 'Ожидание',
-    },
-    {
-      action:
-        `Активных лотереек: ${activePrizes.length}`,
-
-      user: 'Модуль лотереек',
-      date: 'Сегодня',
-
-      status:
-        databaseIsConnected
-          ? 'Готово'
-          : 'Ожидание',
-    },
-  ]
-
   function handleRefresh() {
     setLoadingStatus(
       'loading',
@@ -620,8 +628,8 @@ function App() {
             >
               {loadingStatus
                 === 'loading'
-                ? 'Загрузка...'
-                : 'Обновить'}
+                  ? 'Загрузка...'
+                  : 'Обновить'}
             </button>
           </header>
 
@@ -671,13 +679,20 @@ function App() {
                 <div className="flex items-center justify-between border-b border-slate-800 px-6 py-5">
                   <div>
                     <h3 className="text-lg font-semibold text-white">
-                      Состояние системы
+                      Последние действия
                     </h3>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      Загруженные модули
+                      Последние записи из журнала
                     </p>
                   </div>
+
+                  <Link
+                    to="/action-logs"
+                    className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
+                  >
+                    Открыть журнал
+                  </Link>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -689,7 +704,7 @@ function App() {
                         </th>
 
                         <th className="px-6 py-4 font-semibold">
-                          Источник
+                          Модуль
                         </th>
 
                         <th className="px-6 py-4 font-semibold">
@@ -697,63 +712,84 @@ function App() {
                         </th>
 
                         <th className="px-6 py-4 font-semibold">
-                          Статус
+                          Тип
                         </th>
                       </tr>
                     </thead>
 
                     <tbody className="divide-y divide-slate-800">
-                      {recentActions.map(
-                        (item) => (
-                          <tr
-                            key={
-                              item.action
-                            }
-                            className="transition hover:bg-slate-800/30"
-                          >
-                            <td className="px-6 py-4 text-sm font-medium text-slate-200">
-                              {
-                                item.action
-                              }
-                            </td>
-
-                            <td className="px-6 py-4 text-sm text-slate-400">
-                              {
-                                item.user
-                              }
-                            </td>
-
-                            <td className="px-6 py-4 text-sm text-slate-400">
-                              {
-                                item.date
-                              }
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <span
-                                className={[
-                                  'rounded-full px-3 py-1 text-xs font-semibold',
-
-                                  item.status
-                                  === 'Готово'
-                                    ? (
-                                        'bg-emerald-500/10 '
-                                        + 'text-emerald-400'
-                                      )
-                                    : (
-                                        'bg-amber-500/10 '
-                                        + 'text-amber-400'
-                                      ),
-                                ].join(' ')}
-                              >
-                                {
-                                  item.status
-                                }
-                              </span>
+                      {loadingStatus
+                        === 'loading' && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-6 py-10 text-center text-sm text-slate-500"
+                            >
+                              Загрузка последних действий...
                             </td>
                           </tr>
-                        ),
-                      )}
+                        )}
+
+                      {loadingStatus
+                        !== 'loading'
+                        && actionLogs.map(
+                          (actionLog) => (
+                            <tr
+                              key={
+                                actionLog.id
+                              }
+                              className="transition hover:bg-slate-800/30"
+                            >
+                              <td className="px-6 py-4 text-sm font-medium text-slate-200">
+                                {
+                                  actionLog.message
+                                }
+                              </td>
+
+                              <td className="px-6 py-4 text-sm text-slate-400">
+                                {
+                                  entityLabels[
+                                    actionLog.entity_type
+                                  ]
+                                  ?? actionLog.entity_type
+                                }
+                              </td>
+
+                              <td className="whitespace-nowrap px-6 py-4 text-sm text-slate-400">
+                                {
+                                  formatDate(
+                                    actionLog.created_at,
+                                  )
+                                }
+                              </td>
+
+                              <td className="px-6 py-4">
+                                <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-400">
+                                  {
+                                    eventLabels[
+                                      actionLog.event_type
+                                    ]
+                                    ?? actionLog.event_type
+                                  }
+                                </span>
+                              </td>
+                            </tr>
+                          ),
+                        )}
+
+                      {loadingStatus
+                        === 'success'
+                        && actionLogs.length
+                        === 0 && (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="px-6 py-10 text-center text-sm text-slate-500"
+                            >
+                              Действий пока нет
+                            </td>
+                          </tr>
+                        )}
                     </tbody>
                   </table>
                 </div>
