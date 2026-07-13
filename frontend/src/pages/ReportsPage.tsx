@@ -21,6 +21,9 @@ import type { Prize } from '../types/prize'
 import {
   downloadCsv,
 } from '../utils/downloadCsv'
+import {
+  downloadXlsx,
+} from '../utils/downloadXlsx'
 
 type LoadingStatus =
   | 'loading'
@@ -82,8 +85,6 @@ function formatQuantity(
     },
   )
 }
-
-
 
 function formatCsvNumber(
   value: number,
@@ -590,6 +591,146 @@ export function ReportsPage() {
     })
   }
 
+  async function handleDownloadXlsx() {
+    const filenameDate =
+      formatFilenameDate(
+        new Date(),
+      )
+
+    const filterFilenamePart =
+      filterFilenameParts[
+        differenceFilter
+      ]
+
+    await downloadXlsx<ReportRow>({
+      filename: (
+        'cyberclub-report'
+        + `_${filterFilenamePart}`
+        + `_${filenameDate}.xlsx`
+      ),
+
+      sheetName: 'Отчёт по ревизии',
+
+      columns: [
+        {
+          header: 'Товар',
+          width: 38,
+
+          getValue: (row) =>
+            row.productName,
+        },
+        {
+          header: 'Единица',
+          width: 12,
+
+          getValue: (row) =>
+            row.unit,
+
+          alignment: 'center',
+        },
+        {
+          header: 'Цена',
+          width: 15,
+
+          getValue: (row) =>
+            row.price,
+
+          numberFormat:
+            '#,##0.00 "₽"',
+
+          alignment: 'right',
+        },
+        {
+          header: 'По программе',
+          width: 16,
+
+          getValue: (row) =>
+            row.programQuantity,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Активные долги',
+          width: 16,
+
+          getValue: (row) =>
+            row.debtQuantity,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Неучтённые призы',
+          width: 18,
+
+          getValue: (row) =>
+            row.prizeQuantity,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Ожидается',
+          width: 15,
+
+          getValue: (row) =>
+            row.expectedQuantity,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Факт',
+          width: 12,
+
+          getValue: (row) =>
+            row.actualQuantity,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Разница',
+          width: 13,
+
+          getValue: (row) =>
+            row.difference,
+
+          numberFormat: '0.000',
+          alignment: 'right',
+        },
+        {
+          header: 'Сумма расхождения',
+          width: 22,
+
+          getValue: (row) =>
+            getDifferenceAmount(
+              row,
+            ),
+
+          numberFormat:
+            '#,##0.00 "₽"',
+
+          alignment: 'right',
+        },
+        {
+          header: 'Статус',
+          width: 16,
+
+          getValue: (row) =>
+            getDifferenceStatus(
+              row.difference,
+            ),
+
+          alignment: 'center',
+        },
+      ],
+
+      rows: filteredRows,
+    })
+  }
+
   return (
     <main className="min-h-screen bg-[#070a10] p-6 text-slate-100">
       <div className="mx-auto max-w-[1700px]">
@@ -627,6 +768,22 @@ export function ReportsPage() {
               className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-4 py-2.5 text-sm font-medium text-cyan-300 transition hover:border-cyan-400 hover:bg-cyan-500/20 hover:text-cyan-200 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Скачать CSV
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                void handleDownloadXlsx()
+              }}
+              disabled={
+                loadingStatus
+                !== 'success'
+                || filteredRows.length
+                === 0
+              }
+              className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-300 transition hover:border-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Скачать Excel
             </button>
 
             <button
@@ -796,7 +953,7 @@ export function ReportsPage() {
           </select>
 
           <p className="mt-3 text-xs text-slate-500">
-            В CSV попадут позиции,
+            В CSV и Excel попадут позиции,
             выбранные текущим фильтром.
           </p>
         </section>
