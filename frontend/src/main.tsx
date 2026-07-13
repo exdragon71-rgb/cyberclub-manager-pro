@@ -9,6 +9,7 @@ import {
 
 import App from './App.tsx'
 import './index.css'
+import { ActionLogsPage } from './pages/ActionLogsPage.tsx'
 import { CreateProductPage } from './pages/CreateProductPage.tsx'
 import { DebtsPage } from './pages/DebtsPage.tsx'
 import { EditProductPage } from './pages/EditProductPage.tsx'
@@ -62,6 +63,11 @@ createRoot(document.getElementById('root')!).render(
         <Route
           path="/prizes"
           element={<PrizesPage />}
+        />
+
+        <Route
+          path="/action-logs"
+          element={<ActionLogsPage />}
         />
 
         <Route

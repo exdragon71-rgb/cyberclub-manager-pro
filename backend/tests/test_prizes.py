@@ -102,6 +102,63 @@ def test_create_prize(
     )
 
 
+def test_create_prize_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    prize = create_prize(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=2,
+        note="Два выигранных напитка",
+    )
+
+    response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "prize_created",
+            "entity_type": "prize",
+        },
+    )
+
+    assert response.status_code == 200
+
+    action_logs = response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == prize["id"]
+
+    assert action_log["message"] == (
+        "Выдан лотерейный приз "
+        "«Lipton Лимон 0,5». "
+        "Сотрудник: «Роман»."
+    )
+
+    assert action_log["details"]["employee_name"] == (
+        "Роман"
+    )
+
+    assert action_log["details"]["product_name"] == (
+        "Lipton Лимон 0,5"
+    )
+
+    assert Decimal(
+        action_log["details"]["quantity"]
+    ) == Decimal("2")
+
+    assert action_log["details"]["status"] == "active"
+
+    assert action_log["details"]["note"] == (
+        "Два выигранных напитка"
+    )
+
+
 def test_get_prizes(
     client: TestClient,
 ) -> None:
@@ -234,6 +291,73 @@ def test_update_prize_changes_active_quantity(
     ) == Decimal("3")
 
 
+def test_update_prize_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    prize = create_prize(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=1,
+        note="Один напиток",
+    )
+
+    response = client.patch(
+        f"/prizes/{prize['id']}",
+        json={
+            "quantity": 3,
+            "note": "Три напитка",
+        },
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "prize_updated",
+            "entity_type": "prize",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == prize["id"]
+
+    assert action_log["message"] == (
+        "Изменена запись лотерейного приза "
+        "«Lipton Лимон 0,5». "
+        "Сотрудник: «Роман»."
+    )
+
+    assert Decimal(
+        action_log["details"]["before"]["quantity"]
+    ) == Decimal("1")
+
+    assert (
+        action_log["details"]["before"]["note"]
+        == "Один напиток"
+    )
+
+    assert Decimal(
+        action_log["details"]["after"]["quantity"]
+    ) == Decimal("3")
+
+    assert (
+        action_log["details"]["after"]["note"]
+        == "Три напитка"
+    )
+
+
 def test_confirm_prize_reflected(
     client: TestClient,
 ) -> None:
@@ -288,6 +412,64 @@ def test_confirm_prize_reflected(
     assert Decimal(
         balance["active_prize_quantity"]
     ) == Decimal("0")
+
+
+def test_confirm_prize_reflected_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    prize = create_prize(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=1,
+        note="Приз выдан",
+    )
+
+    response = client.post(
+        f"/prizes/{prize['id']}/confirm-reflected"
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "prize_reflected",
+            "entity_type": "prize",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == prize["id"]
+
+    assert action_log["message"] == (
+        "Подтверждён учёт лотерейного приза "
+        "«Lipton Лимон 0,5» в LightShell."
+    )
+
+    assert action_log["details"]["status"] == (
+        "written_off"
+    )
+
+    assert action_log["details"]["written_off_at"] is not None
+
+    assert action_log["details"]["employee_name"] == (
+        "Роман"
+    )
+
+    assert action_log["details"]["product_name"] == (
+        "Lipton Лимон 0,5"
+    )
 
 
 def test_confirm_prize_reflected_twice_returns_422(

@@ -1,4 +1,8 @@
 import type {
+   ActionLog,
+  ActionLogFilters,
+} from '../types/actionLog'
+import type {
   Debt,
   DebtCreate,
   DebtStatus,
@@ -426,5 +430,44 @@ export function applyLightShellImport(
       method: 'POST',
       body: formData,
     },
+  )
+}
+export function getActionLogs(
+  filters: ActionLogFilters = {},
+): Promise<ActionLog[]> {
+  const query = new URLSearchParams()
+
+  if (filters.event_type) {
+    query.set(
+      'event_type',
+      filters.event_type,
+    )
+  }
+
+  if (filters.entity_type) {
+    query.set(
+      'entity_type',
+      filters.entity_type,
+    )
+  }
+
+  if (filters.limit !== undefined) {
+    query.set(
+      'limit',
+      String(filters.limit),
+    )
+  }
+
+  if (filters.offset !== undefined) {
+    query.set(
+      'offset',
+      String(filters.offset),
+    )
+  }
+
+  const queryString = query.toString()
+
+  return apiRequest<ActionLog[]>(
+    `/action-logs${queryString ? `?${queryString}` : ''}`,
   )
 }

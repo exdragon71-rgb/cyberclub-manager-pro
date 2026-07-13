@@ -40,9 +40,50 @@ def test_create_product(
     assert product["price"] == "130.00"
     assert product["unit"] == "шт."
     assert product["minimum_stock"] == "5.000"
-    assert product["lightshell_id"] == "lightshell-lipton-lemon"
+    assert product["lightshell_id"] == (
+        "lightshell-lipton-lemon"
+    )
     assert product["is_active"] is True
     assert product["id"]
+
+
+def test_create_product_writes_action_log(
+    client: TestClient,
+) -> None:
+    product = create_test_product(
+        client,
+        name="Lipton Лимон 0,5",
+        price=130,
+        minimum_stock=5,
+    )
+
+    response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "product_created",
+            "entity_type": "product",
+        },
+    )
+
+    assert response.status_code == 200
+
+    action_logs = response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == product["id"]
+
+    assert action_log["message"] == (
+        "Добавлен товар «Lipton Лимон 0,5»."
+    )
+
+    assert action_log["details"]["name"] == (
+        "Lipton Лимон 0,5"
+    )
+
+    assert action_log["details"]["is_active"] is True
 
 
 def test_get_products(
@@ -129,6 +170,58 @@ def test_update_product(
     assert updated_product["minimum_stock"] == "10.000"
 
 
+def test_update_product_writes_action_log(
+    client: TestClient,
+) -> None:
+    created_product = create_test_product(
+        client
+    )
+
+    product_id = created_product["id"]
+
+    response = client.patch(
+        f"/products/{product_id}",
+        json={
+            "name": "Lipton обновлённый",
+            "price": 150,
+        },
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "product_updated",
+            "entity_type": "product",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == product_id
+
+    assert action_log["message"] == (
+        "Изменён товар «Lipton обновлённый»."
+    )
+
+    assert (
+        action_log["details"]["before"]["name"]
+        == "Lipton Лимон 0,5"
+    )
+
+    assert (
+        action_log["details"]["after"]["name"]
+        == "Lipton обновлённый"
+    )
+
+
 def test_archive_product(
     client: TestClient,
 ) -> None:
@@ -170,6 +263,47 @@ def test_archive_product(
     )
 
 
+def test_archive_product_writes_action_log(
+    client: TestClient,
+) -> None:
+    created_product = create_test_product(
+        client
+    )
+
+    product_id = created_product["id"]
+
+    response = client.post(
+        f"/products/{product_id}/archive"
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "product_archived",
+            "entity_type": "product",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == product_id
+
+    assert action_log["message"] == (
+        "Товар «Lipton Лимон 0,5» "
+        "перенесён в архив."
+    )
+
+    assert action_log["details"]["is_active"] is False
+
+
 def test_restore_product(
     client: TestClient,
 ) -> None:
@@ -196,6 +330,53 @@ def test_restore_product(
 
     assert active_products_response.status_code == 200
     assert len(active_products_response.json()) == 1
+
+
+def test_restore_product_writes_action_log(
+    client: TestClient,
+) -> None:
+    created_product = create_test_product(
+        client
+    )
+
+    product_id = created_product["id"]
+
+    archive_response = client.post(
+        f"/products/{product_id}/archive"
+    )
+
+    assert archive_response.status_code == 200
+
+    restore_response = client.post(
+        f"/products/{product_id}/restore"
+    )
+
+    assert restore_response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "product_restored",
+            "entity_type": "product",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == product_id
+
+    assert action_log["message"] == (
+        "Товар «Lipton Лимон 0,5» "
+        "восстановлен из архива."
+    )
+
+    assert action_log["details"]["is_active"] is True
 
 
 def test_duplicate_product_name_returns_conflict(

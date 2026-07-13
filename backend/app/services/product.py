@@ -1,3 +1,4 @@
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -15,6 +16,10 @@ from app.repositories.product import (
 from app.schemas.product import (
     ProductCreate,
     ProductUpdate,
+)
+from app.services.action_log import (
+    ActionLogService,
+    action_log_service,
 )
 
 
@@ -35,9 +40,26 @@ class ProductService:
         self,
         repository: ProductRepository,
         balance_repository: InventoryBalanceRepository,
+        action_log_service: ActionLogService,
     ) -> None:
         self.repository = repository
         self.balance_repository = balance_repository
+        self.action_log_service = action_log_service
+
+    @staticmethod
+    def _get_log_details(
+        product: Product,
+    ) -> dict[str, Any]:
+        return {
+            "name": product.name,
+            "price": str(product.price),
+            "unit": product.unit,
+            "minimum_stock": str(
+                product.minimum_stock
+            ),
+            "lightshell_id": product.lightshell_id,
+            "is_active": product.is_active,
+        }
 
     def get_all(
         self,
@@ -148,6 +170,19 @@ class ProductService:
             product.id,
         )
 
+        self.action_log_service.record(
+            db,
+            event_type="product_created",
+            entity_type="product",
+            entity_id=product.id,
+            message=(
+                f"Добавлен товар «{product.name}»."
+            ),
+            details=self._get_log_details(
+                product,
+            ),
+        )
+
         return product
 
     def create(
@@ -188,6 +223,10 @@ class ProductService:
         product = self.get_by_id(
             db,
             product_id,
+        )
+
+        before_details = self._get_log_details(
+            product,
         )
 
         normalized_updates = {}
@@ -306,6 +345,26 @@ class ProductService:
                 )
             )
 
+            after_details = self._get_log_details(
+                updated_product,
+            )
+
+            if before_details != after_details:
+                self.action_log_service.record(
+                    db,
+                    event_type="product_updated",
+                    entity_type="product",
+                    entity_id=updated_product.id,
+                    message=(
+                        "Изменён товар "
+                        f"«{updated_product.name}»."
+                    ),
+                    details={
+                        "before": before_details,
+                        "after": after_details,
+                    },
+                )
+
             db.commit()
             db.refresh(updated_product)
 
@@ -350,6 +409,22 @@ class ProductService:
                 )
             )
 
+            self.action_log_service.record(
+                db,
+                event_type="product_archived",
+                entity_type="product",
+                entity_id=archived_product.id,
+                message=(
+                    "Товар "
+                    f"«{archived_product.name}» "
+                    "перенесён в архив."
+                ),
+                details={
+                    "name": archived_product.name,
+                    "is_active": False,
+                },
+            )
+
             db.commit()
             db.refresh(archived_product)
 
@@ -385,6 +460,22 @@ class ProductService:
                 )
             )
 
+            self.action_log_service.record(
+                db,
+                event_type="product_restored",
+                entity_type="product",
+                entity_id=restored_product.id,
+                message=(
+                    "Товар "
+                    f"«{restored_product.name}» "
+                    "восстановлен из архива."
+                ),
+                details={
+                    "name": restored_product.name,
+                    "is_active": True,
+                },
+            )
+
             db.commit()
             db.refresh(restored_product)
 
@@ -400,4 +491,5 @@ product_service = ProductService(
     balance_repository=(
         inventory_balance_repository
     ),
+    action_log_service=action_log_service,
 )

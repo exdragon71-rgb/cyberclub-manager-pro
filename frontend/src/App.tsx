@@ -63,10 +63,14 @@ const navigationItems = [
     active: false,
   },
   {
-    name: 'Журнал',
-    path: null,
-    active: false,
-  },
+  name: 'Журнал',
+  path: '/action-logs',
+  active: false,
+},
+   
+   
+    
+  
   {
     name: 'Настройки',
     path: null,

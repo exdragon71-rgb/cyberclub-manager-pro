@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -85,9 +86,11 @@ def test_preview_lightshell_import(
     preview = response.json()
 
     assert preview["branch"] == "#1"
+
     assert preview["source_filename"] == (
         "lightshell_inventory.pdf"
     )
+
     assert preview["total_items"] == 81
     assert preview["matched_items"] == 1
     assert preview["unmatched_items"] == 80
@@ -116,6 +119,7 @@ def test_preview_rejects_non_pdf_file(
     )
 
     assert response.status_code == 422
+
     assert response.json()["detail"] == (
         "Можно загрузить только PDF-файл."
     )
@@ -136,6 +140,7 @@ def test_preview_rejects_empty_pdf(
     )
 
     assert response.status_code == 422
+
     assert response.json()["detail"] == (
         "Загруженный PDF пуст."
     )
@@ -218,10 +223,200 @@ def test_apply_updates_only_program_quantity(
         )
 
     assert preview_response.status_code == 200
+
     assert (
         preview_response.json()["items"][0]["status"]
         == "mapped"
     )
+
+
+def test_apply_writes_action_log(
+    client: TestClient,
+) -> None:
+    product = create_test_product(
+        client,
+        name=(
+            "Горячая кружка Магги "
+            "со стаканчиком"
+        ),
+    )
+
+    balance_response = client.patch(
+        f"/inventory-balances/{product['id']}",
+        json={
+            "program_quantity": 99,
+            "actual_quantity": 7,
+        },
+    )
+
+    assert balance_response.status_code == 200
+
+    resolutions = build_resolutions(
+        first_action="use_existing",
+        first_product_id=product["id"],
+    )
+
+    with FIXTURE_PATH.open("rb") as pdf_file:
+        import_response = client.post(
+            "/lightshell-imports/apply",
+            files={
+                "file": (
+                    "lightshell_inventory.pdf",
+                    pdf_file,
+                    "application/pdf",
+                ),
+            },
+            data={
+                "resolutions_json": json.dumps(
+                    resolutions
+                ),
+            },
+        )
+
+    assert import_response.status_code == 200
+
+    import_result = import_response.json()
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": (
+                "lightshell_import_applied"
+            ),
+            "entity_type": (
+                "lightshell_import"
+            ),
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == (
+        import_result["import_id"]
+    )
+
+    assert action_log["message"] == (
+        "Выполнен импорт LightShell "
+        "из файла «lightshell_inventory.pdf»."
+    )
+
+    details = action_log["details"]
+
+    assert details["branch"] == "#1"
+
+    assert details["source_filename"] == (
+        "lightshell_inventory.pdf"
+    )
+
+    assert details["total_items"] == 81
+    assert details["updated_items"] == 1
+    assert details["created_products"] == 0
+    assert details["skipped_items"] == 80
+    assert details["created_mappings"] == 1
+    assert details["changed_items"] == 1
+
+    changed_items = (
+        details["changed_program_quantities"]
+    )
+
+    assert len(changed_items) == 1
+
+    changed_item = changed_items[0]
+
+    assert changed_item["source_number"] == 1
+    assert changed_item["product_id"] == product["id"]
+
+    assert changed_item["product_name"] == (
+        "Горячая кружка Магги "
+        "со стаканчиком"
+    )
+
+    assert Decimal(
+        changed_item["before"]
+    ) == Decimal("99")
+
+    assert Decimal(
+        changed_item["after"]
+    ) == Decimal("4")
+
+
+def test_import_with_same_quantity_has_no_changed_items(
+    client: TestClient,
+) -> None:
+    product = create_test_product(
+        client,
+        name=(
+            "Горячая кружка Магги "
+            "со стаканчиком"
+        ),
+    )
+
+    balance_response = client.patch(
+        f"/inventory-balances/{product['id']}",
+        json={
+            "program_quantity": 4,
+            "actual_quantity": 7,
+        },
+    )
+
+    assert balance_response.status_code == 200
+
+    resolutions = build_resolutions(
+        first_action="use_existing",
+        first_product_id=product["id"],
+    )
+
+    with FIXTURE_PATH.open("rb") as pdf_file:
+        import_response = client.post(
+            "/lightshell-imports/apply",
+            files={
+                "file": (
+                    "lightshell_inventory.pdf",
+                    pdf_file,
+                    "application/pdf",
+                ),
+            },
+            data={
+                "resolutions_json": json.dumps(
+                    resolutions
+                ),
+            },
+        )
+
+    assert import_response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": (
+                "lightshell_import_applied"
+            ),
+            "entity_type": (
+                "lightshell_import"
+            ),
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    details = action_logs[0]["details"]
+
+    assert details["updated_items"] == 1
+    assert details["changed_items"] == 0
+
+    assert details[
+        "changed_program_quantities"
+    ] == []
 
 
 def test_apply_creates_new_product(
@@ -272,6 +467,7 @@ def test_apply_creates_new_product(
     assert product["name"] == (
         "Горячая кружка Магги со стаканчиком"
     )
+
     assert product["price"] == "0.00"
 
     balance_response = client.get(
@@ -315,6 +511,7 @@ def test_apply_rejects_missing_resolutions(
         )
 
     assert response.status_code == 422
+
     assert response.json()["detail"].startswith(
         "Не указано решение для позиций:"
     )

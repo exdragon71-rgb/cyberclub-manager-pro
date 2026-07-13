@@ -82,14 +82,88 @@ def test_create_debt(
 
     assert debt["employee_id"] == employee["id"]
     assert debt["product_id"] == product["id"]
-    assert Decimal(debt["quantity"]) == Decimal("2")
-    assert Decimal(debt["unit_price"]) == Decimal("130")
-    assert Decimal(debt["total_amount"]) == Decimal("260")
+
+    assert Decimal(
+        debt["quantity"]
+    ) == Decimal("2")
+
+    assert Decimal(
+        debt["unit_price"]
+    ) == Decimal("130")
+
+    assert Decimal(
+        debt["total_amount"]
+    ) == Decimal("260")
+
     assert debt["status"] == "active"
     assert debt["note"] == "До зарплаты"
     assert debt["paid_at"] is None
+
     assert debt["employee"]["name"] == "Роман"
-    assert debt["product"]["name"] == "Lipton Лимон 0,5"
+
+    assert debt["product"]["name"] == (
+        "Lipton Лимон 0,5"
+    )
+
+
+def test_create_debt_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    debt = create_debt(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=2,
+        note="До зарплаты",
+    )
+
+    response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "debt_created",
+            "entity_type": "debt",
+        },
+    )
+
+    assert response.status_code == 200
+
+    action_logs = response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == debt["id"]
+
+    assert action_log["message"] == (
+        "Добавлен долг сотрудника «Роман» "
+        "за товар «Lipton Лимон 0,5»."
+    )
+
+    assert action_log["details"]["employee_name"] == (
+        "Роман"
+    )
+
+    assert action_log["details"]["product_name"] == (
+        "Lipton Лимон 0,5"
+    )
+
+    assert Decimal(
+        action_log["details"]["quantity"]
+    ) == Decimal("2")
+
+    assert Decimal(
+        action_log["details"]["total_amount"]
+    ) == Decimal("260")
+
+    assert action_log["details"]["status"] == "active"
+
+    assert action_log["details"]["note"] == (
+        "До зарплаты"
+    )
 
 
 def test_debt_creation_does_not_change_inventory(
@@ -135,6 +209,7 @@ def test_debt_keeps_original_product_price(
     client: TestClient,
 ) -> None:
     employee = create_employee(client)
+
     product = create_product(
         client,
         price=130,
@@ -199,6 +274,72 @@ def test_update_active_debt(
     assert updated_debt["note"] == "Три бутылки"
 
 
+def test_update_debt_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    debt = create_debt(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=1,
+        note="Одна бутылка",
+    )
+
+    response = client.patch(
+        f"/debts/{debt['id']}",
+        json={
+            "quantity": 3,
+            "note": "Три бутылки",
+        },
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "debt_updated",
+            "entity_type": "debt",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == debt["id"]
+
+    assert action_log["message"] == (
+        "Изменён долг сотрудника «Роман» "
+        "за товар «Lipton Лимон 0,5»."
+    )
+
+    assert Decimal(
+        action_log["details"]["before"]["quantity"]
+    ) == Decimal("1")
+
+    assert (
+        action_log["details"]["before"]["note"]
+        == "Одна бутылка"
+    )
+
+    assert Decimal(
+        action_log["details"]["after"]["quantity"]
+    ) == Decimal("3")
+
+    assert (
+        action_log["details"]["after"]["note"]
+        == "Три бутылки"
+    )
+
+
 def test_pay_debt_reduces_program_quantity(
     client: TestClient,
 ) -> None:
@@ -248,6 +389,76 @@ def test_pay_debt_reduces_program_quantity(
     assert Decimal(
         updated_balance["actual_quantity"]
     ) == Decimal("17")
+
+
+def test_pay_debt_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    balance_response = client.patch(
+        f"/inventory-balances/{product['id']}",
+        json={
+            "program_quantity": 18,
+            "actual_quantity": 17,
+        },
+    )
+
+    assert balance_response.status_code == 200
+
+    debt = create_debt(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+        quantity=1,
+        note="До зарплаты",
+    )
+
+    pay_response = client.post(
+        f"/debts/{debt['id']}/pay"
+    )
+
+    assert pay_response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "debt_paid",
+            "entity_type": "debt",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == debt["id"]
+
+    assert action_log["message"] == (
+        "Погашен долг сотрудника «Роман» "
+        "за товар «Lipton Лимон 0,5»."
+    )
+
+    assert action_log["details"]["status"] == "paid"
+
+    assert Decimal(
+        action_log["details"][
+            "program_quantity_before"
+        ]
+    ) == Decimal("18")
+
+    assert Decimal(
+        action_log["details"][
+            "program_quantity_after"
+        ]
+    ) == Decimal("17")
+
+    assert action_log["details"]["paid_at"] is not None
 
 
 def test_paying_debt_twice_does_not_reduce_stock_twice(
@@ -324,6 +535,7 @@ def test_paid_debt_cannot_be_updated(
     )
 
     assert update_response.status_code == 422
+
     assert update_response.json()["detail"] == (
         "Погашенный долг нельзя изменить."
     )
@@ -362,6 +574,7 @@ def test_filter_debts_by_status(
 
     assert active_response.status_code == 200
     assert len(active_response.json()) == 1
+
     assert active_response.json()[0]["id"] == (
         active_debt["id"]
     )
@@ -375,6 +588,7 @@ def test_filter_debts_by_status(
 
     assert paid_response.status_code == 200
     assert len(paid_response.json()) == 1
+
     assert paid_response.json()[0]["id"] == (
         paid_debt["id"]
     )
@@ -390,6 +604,7 @@ def test_unknown_debt_returns_404(
     )
 
     assert response.status_code == 404
+
     assert response.json()["detail"] == (
         "Долг не найден."
     )

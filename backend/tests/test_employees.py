@@ -32,6 +32,42 @@ def test_create_employee(
     assert "updated_at" in employee
 
 
+def test_create_employee_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(
+        client,
+        name="Рома",
+    )
+
+    response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "employee_created",
+            "entity_type": "employee",
+        },
+    )
+
+    assert response.status_code == 200
+
+    action_logs = response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == employee["id"]
+
+    assert action_log["message"] == (
+        "Добавлен сотрудник «Рома»."
+    )
+
+    assert action_log["details"] == {
+        "name": "Рома",
+        "is_active": True,
+    }
+
+
 def test_get_employee_by_id(
     client: TestClient,
 ) -> None:
@@ -83,6 +119,56 @@ def test_update_employee(
     assert response.json()["name"] == "Роман"
 
 
+def test_update_employee_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(
+        client,
+        name="Рома",
+    )
+
+    response = client.patch(
+        f"/employees/{employee['id']}",
+        json={
+            "name": "Роман",
+        },
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "employee_updated",
+            "entity_type": "employee",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == employee["id"]
+
+    assert action_log["message"] == (
+        "Изменён сотрудник «Роман»."
+    )
+
+    assert (
+        action_log["details"]["before"]["name"]
+        == "Рома"
+    )
+
+    assert (
+        action_log["details"]["after"]["name"]
+        == "Роман"
+    )
+
+
 def test_archive_and_restore_employee(
     client: TestClient,
 ) -> None:
@@ -101,6 +187,96 @@ def test_archive_and_restore_employee(
 
     assert restore_response.status_code == 200
     assert restore_response.json()["is_active"] is True
+
+
+def test_archive_employee_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(
+        client,
+        name="Рома",
+    )
+
+    response = client.post(
+        f"/employees/{employee['id']}/archive"
+    )
+
+    assert response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "employee_archived",
+            "entity_type": "employee",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == employee["id"]
+
+    assert action_log["message"] == (
+        "Сотрудник «Рома» перенесён в архив."
+    )
+
+    assert action_log["details"] == {
+        "name": "Рома",
+        "is_active": False,
+    }
+
+
+def test_restore_employee_writes_action_log(
+    client: TestClient,
+) -> None:
+    employee = create_employee(
+        client,
+        name="Рома",
+    )
+
+    archive_response = client.post(
+        f"/employees/{employee['id']}/archive"
+    )
+
+    assert archive_response.status_code == 200
+
+    restore_response = client.post(
+        f"/employees/{employee['id']}/restore"
+    )
+
+    assert restore_response.status_code == 200
+
+    logs_response = client.get(
+        "/action-logs",
+        params={
+            "event_type": "employee_restored",
+            "entity_type": "employee",
+        },
+    )
+
+    assert logs_response.status_code == 200
+
+    action_logs = logs_response.json()
+
+    assert len(action_logs) == 1
+
+    action_log = action_logs[0]
+
+    assert action_log["entity_id"] == employee["id"]
+
+    assert action_log["message"] == (
+        "Сотрудник «Рома» восстановлен из архива."
+    )
+
+    assert action_log["details"] == {
+        "name": "Рома",
+        "is_active": True,
+    }
 
 
 def test_inactive_employees_can_be_included(

@@ -24,6 +24,10 @@ from app.repositories.lightshell_import import (
 )
 from app.repositories.product import product_repository
 from app.schemas.product import ProductCreate
+from app.services.action_log import (
+    ActionLogService,
+    action_log_service,
+)
 from app.services.product import product_service
 
 
@@ -32,6 +36,12 @@ class LightShellImportValidationError(Exception):
 
 
 class LightShellImportService:
+    def __init__(
+        self,
+        action_log_service: ActionLogService,
+    ) -> None:
+        self.action_log_service = action_log_service
+
     def build_preview(
         self,
         db: Session,
@@ -265,6 +275,10 @@ class LightShellImportService:
         created_mappings = 0
         updated_items = 0
 
+        changed_program_quantities: list[
+            dict[str, object]
+        ] = []
+
         try:
             for item in document.items:
                 resolution = (
@@ -405,6 +419,10 @@ class LightShellImportService:
                         )
                     )
 
+                program_quantity_before = (
+                    balance.program_quantity
+                )
+
                 (
                     inventory_balance_repository
                     .update_program_quantity(
@@ -413,6 +431,33 @@ class LightShellImportService:
                         item.program_quantity,
                     )
                 )
+
+                if (
+                    program_quantity_before
+                    != item.program_quantity
+                ):
+                    changed_program_quantities.append(
+                        {
+                            "source_number": (
+                                item.source_number
+                            ),
+                            "source_name": (
+                                item.name
+                            ),
+                            "product_id": str(
+                                product.id
+                            ),
+                            "product_name": (
+                                product.name
+                            ),
+                            "before": str(
+                                program_quantity_before
+                            ),
+                            "after": str(
+                                item.program_quantity
+                            ),
+                        }
+                    )
 
                 normalized_source_name = (
                     normalize_lightshell_name(
@@ -470,6 +515,57 @@ class LightShellImportService:
                 )
             )
 
+            self.action_log_service.record(
+                db,
+                event_type=(
+                    "lightshell_import_applied"
+                ),
+                entity_type="lightshell_import",
+                entity_id=import_record.id,
+                message=(
+                    "Выполнен импорт LightShell "
+                    f"из файла "
+                    f"«{normalized_filename}»."
+                ),
+                details={
+                    "branch": (
+                        import_record.branch
+                    ),
+                    "generated_at": (
+                        import_record
+                        .generated_at
+                        .isoformat()
+                        if import_record.generated_at
+                        else None
+                    ),
+                    "source_filename": (
+                        import_record
+                        .source_filename
+                    ),
+                    "total_items": (
+                        import_record.total_items
+                    ),
+                    "updated_items": (
+                        updated_items
+                    ),
+                    "created_products": (
+                        created_products
+                    ),
+                    "skipped_items": (
+                        skipped_items
+                    ),
+                    "created_mappings": (
+                        created_mappings
+                    ),
+                    "changed_items": len(
+                        changed_program_quantities
+                    ),
+                    "changed_program_quantities": (
+                        changed_program_quantities
+                    ),
+                },
+            )
+
             db.commit()
             db.refresh(import_record)
 
@@ -501,5 +597,7 @@ class LightShellImportService:
 
 
 lightshell_import_service = (
-    LightShellImportService()
+    LightShellImportService(
+        action_log_service=action_log_service,
+    )
 )

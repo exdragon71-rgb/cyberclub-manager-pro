@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -20,6 +21,10 @@ from app.schemas.prize import (
     PrizeCreate,
     PrizeUpdate,
 )
+from app.services.action_log import (
+    ActionLogService,
+    action_log_service,
+)
 
 
 class PrizeNotFoundError(Exception):
@@ -36,10 +41,35 @@ class PrizeService:
         repository: PrizeRepository,
         employee_repository: EmployeeRepository,
         product_repository: ProductRepository,
+        action_log_service: ActionLogService,
     ) -> None:
         self.repository = repository
         self.employee_repository = employee_repository
         self.product_repository = product_repository
+        self.action_log_service = action_log_service
+
+    @staticmethod
+    def _get_log_details(
+        prize: Prize,
+    ) -> dict[str, Any]:
+        return {
+            "employee_id": str(
+                prize.employee_id
+            ),
+            "product_id": str(
+                prize.product_id
+            ),
+            "quantity": str(
+                prize.quantity
+            ),
+            "status": prize.status,
+            "note": prize.note,
+            "written_off_at": (
+                prize.written_off_at.isoformat()
+                if prize.written_off_at
+                else None
+            ),
+        }
 
     def get_all(
         self,
@@ -132,6 +162,30 @@ class PrizeService:
                 note=note,
             )
 
+            self.action_log_service.record(
+                db,
+                event_type="prize_created",
+                entity_type="prize",
+                entity_id=prize.id,
+                message=(
+                    "Выдан лотерейный приз "
+                    f"«{product.name}». "
+                    "Сотрудник: "
+                    f"«{employee.name}»."
+                ),
+                details={
+                    **self._get_log_details(
+                        prize,
+                    ),
+                    "employee_name": (
+                        employee.name
+                    ),
+                    "product_name": (
+                        product.name
+                    ),
+                },
+            )
+
             db.commit()
 
             return self.get_by_id(
@@ -159,6 +213,12 @@ class PrizeService:
                 "Приз из истории нельзя изменить."
             )
 
+        before_details = (
+            self._get_log_details(
+                prize,
+            )
+        )
+
         try:
             updated_prize = (
                 self.repository.update(
@@ -167,6 +227,41 @@ class PrizeService:
                     prize_data,
                 )
             )
+
+            after_details = (
+                self._get_log_details(
+                    updated_prize,
+                )
+            )
+
+            if before_details != after_details:
+                self.action_log_service.record(
+                    db,
+                    event_type="prize_updated",
+                    entity_type="prize",
+                    entity_id=updated_prize.id,
+                    message=(
+                        "Изменена запись "
+                        "лотерейного приза "
+                        f"«{updated_prize.product.name}». "
+                        "Сотрудник: "
+                        f"«{updated_prize.employee.name}»."
+                    ),
+                    details={
+                        "before": before_details,
+                        "after": after_details,
+                        "employee_name": (
+                            updated_prize
+                            .employee
+                            .name
+                        ),
+                        "product_name": (
+                            updated_prize
+                            .product
+                            .name
+                        ),
+                    },
+                )
 
             db.commit()
 
@@ -205,6 +300,34 @@ class PrizeService:
                 )
             )
 
+            self.action_log_service.record(
+                db,
+                event_type="prize_reflected",
+                entity_type="prize",
+                entity_id=updated_prize.id,
+                message=(
+                    "Подтверждён учёт "
+                    "лотерейного приза "
+                    f"«{updated_prize.product.name}» "
+                    "в LightShell."
+                ),
+                details={
+                    **self._get_log_details(
+                        updated_prize,
+                    ),
+                    "employee_name": (
+                        updated_prize
+                        .employee
+                        .name
+                    ),
+                    "product_name": (
+                        updated_prize
+                        .product
+                        .name
+                    ),
+                },
+            )
+
             db.commit()
 
             return self.get_by_id(
@@ -221,4 +344,5 @@ prize_service = PrizeService(
     repository=prize_repository,
     employee_repository=employee_repository,
     product_repository=product_repository,
+    action_log_service=action_log_service,
 )
