@@ -9,10 +9,14 @@ import { Link } from 'react-router-dom'
 import {
   confirmPrizeReflected,
   createPrize,
+  getClubSettings,
   getEmployees,
   getPrizes,
   getProducts,
 } from '../api/client'
+import type {
+  ClubSetting,
+} from '../types/clubSetting'
 import type { Employee } from '../types/employee'
 import type {
   Prize,
@@ -36,6 +40,20 @@ function formatQuantity(
     'ru-RU',
     {
       maximumFractionDigits: 3,
+    },
+  )
+}
+
+function formatPrice(
+  value: string | number,
+) {
+  return Number(value).toLocaleString(
+    'ru-RU',
+    {
+      style: 'currency',
+      currency: 'RUB',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
     },
   )
 }
@@ -67,6 +85,13 @@ export function PrizesPage() {
     products,
     setProducts,
   ] = useState<Product[]>([])
+
+  const [
+    clubSettings,
+    setClubSettings,
+  ] = useState<ClubSetting | null>(
+    null,
+  )
 
   const [
     employeeId,
@@ -131,10 +156,12 @@ export function PrizesPage() {
           loadedPrizes,
           loadedEmployees,
           loadedProducts,
+          loadedClubSettings,
         ] = await Promise.all([
           getPrizes(),
           getEmployees(),
           getProducts(),
+          getClubSettings(),
         ])
 
         setPrizes(
@@ -149,6 +176,10 @@ export function PrizesPage() {
           loadedProducts,
         )
 
+        setClubSettings(
+          loadedClubSettings,
+        )
+
         setErrorMessage('')
         setLoadingStatus(
           'success',
@@ -157,6 +188,7 @@ export function PrizesPage() {
         setPrizes([])
         setEmployees([])
         setProducts([])
+        setClubSettings(null)
 
         setLoadingStatus(
           'error',
@@ -376,6 +408,13 @@ export function PrizesPage() {
         === 'active',
     )
 
+  const lotteryTicketPrice =
+    Number(
+      clubSettings
+        ?.lottery_ticket_price
+      ?? 85,
+    )
+
   const activePrizeQuantity =
     activePrizes.reduce(
       (
@@ -429,7 +468,7 @@ export function PrizesPage() {
           </button>
         </header>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-3">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5">
             <p className="text-sm text-slate-400">
               Всего записей
@@ -470,6 +509,28 @@ export function PrizesPage() {
                     )}
             </p>
           </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5">
+            <p className="text-sm text-slate-400">
+              Цена лотерейного билета
+            </p>
+
+            <p className="mt-2 text-3xl font-bold text-emerald-400">
+              {loadingStatus
+                === 'loading'
+                  ? '...'
+                  : formatPrice(
+                      lotteryTicketPrice,
+                    )}
+            </p>
+
+            <Link
+              to="/settings"
+              className="mt-2 inline-block text-sm text-slate-500 transition hover:text-cyan-400"
+            >
+              Изменить в настройках
+            </Link>
+          </div>
         </section>
 
         <form
@@ -486,6 +547,14 @@ export function PrizesPage() {
             Запись уменьшит ожидаемый
             остаток в ревизии, но не изменит
             значения «По программе» и «Факт».
+          </p>
+
+          <p className="mt-2 text-sm text-emerald-400">
+            Текущая цена билета:
+            {' '}
+            {formatPrice(
+              lotteryTicketPrice,
+            )}
           </p>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
