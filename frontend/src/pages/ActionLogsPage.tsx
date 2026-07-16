@@ -24,6 +24,7 @@ type EntityFilter =
   | 'debt'
   | 'prize'
   | 'inventory_balance'
+  | 'club_setting'
   | 'lightshell_import'
 
 type EventFilter =
@@ -43,6 +44,7 @@ type EventFilter =
   | 'prize_updated'
   | 'prize_reflected'
   | 'inventory_balance_updated'
+  | 'club_setting_updated'
   | 'lightshell_import_applied'
 
 const entityLabels: Record<string, string> = {
@@ -51,6 +53,7 @@ const entityLabels: Record<string, string> = {
   debt: 'Долги',
   prize: 'Лотерейки',
   inventory_balance: 'Ревизия',
+  club_setting: 'Настройки',
   lightshell_import: 'LightShell',
 }
 
@@ -74,6 +77,8 @@ const eventLabels: Record<string, string> = {
   prize_reflected: 'Приз учтён в LightShell',
 
   inventory_balance_updated: 'Остатки изменены',
+
+  club_setting_updated: 'Настройки изменены',
 
   lightshell_import_applied: 'Импорт LightShell',
 }
@@ -248,7 +253,8 @@ export function ActionLogsPage() {
             <p className="mt-2 text-sm text-slate-400">
               История изменений товаров,
               сотрудников, долгов,
-              лотереек и ревизии
+              лотереек, ревизии
+              и настроек клуба
             </p>
           </div>
 
@@ -358,6 +364,10 @@ export function ActionLogsPage() {
 
                 <option value="inventory_balance">
                   Ревизия
+                </option>
+
+                <option value="club_setting">
+                  Настройки
                 </option>
 
                 <option value="lightshell_import">
