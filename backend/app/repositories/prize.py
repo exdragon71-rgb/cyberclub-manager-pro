@@ -80,12 +80,14 @@ class PrizeRepository:
         employee_id: UUID,
         product_id: UUID,
         quantity: Decimal,
+        ticket_price: Decimal,
         note: str | None,
     ) -> Prize:
         prize = Prize(
             employee_id=employee_id,
             product_id=product_id,
             quantity=quantity,
+            ticket_price=ticket_price,
             note=note,
         )
 

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
@@ -25,6 +26,10 @@ from app.services.action_log import (
     ActionLogService,
     action_log_service,
 )
+from app.services.club_setting import (
+    ClubSettingService,
+    club_setting_service,
+)
 
 
 class PrizeNotFoundError(Exception):
@@ -42,11 +47,15 @@ class PrizeService:
         employee_repository: EmployeeRepository,
         product_repository: ProductRepository,
         action_log_service: ActionLogService,
+        club_setting_service: ClubSettingService,
     ) -> None:
         self.repository = repository
         self.employee_repository = employee_repository
         self.product_repository = product_repository
         self.action_log_service = action_log_service
+        self.club_setting_service = (
+            club_setting_service
+        )
 
     @staticmethod
     def _get_log_details(
@@ -61,6 +70,10 @@ class PrizeService:
             ),
             "quantity": str(
                 prize.quantity
+            ),
+            "ticket_price": format(
+                prize.ticket_price,
+                ".2f",
             ),
             "status": prize.status,
             "note": prize.note,
@@ -144,6 +157,23 @@ class PrizeService:
                 "на товар из архива."
             )
 
+        if (
+            prize_data.quantity
+            != Decimal("1")
+        ):
+            raise PrizeValidationError(
+                "Одна запись должна "
+                "соответствовать одной "
+                "лотерейке и одному призу. "
+                "Количество должно быть равно 1."
+            )
+
+        club_setting = (
+            self.club_setting_service.get_default(
+                db,
+            )
+        )
+
         note = (
             prize_data.note.strip()
             if (
@@ -158,7 +188,11 @@ class PrizeService:
                 db,
                 employee_id=employee.id,
                 product_id=product.id,
-                quantity=prize_data.quantity,
+                quantity=Decimal("1"),
+                ticket_price=(
+                    club_setting
+                    .lottery_ticket_price
+                ),
                 note=note,
             )
 
@@ -211,6 +245,16 @@ class PrizeService:
         if prize.status == "written_off":
             raise PrizeValidationError(
                 "Приз из истории нельзя изменить."
+            )
+
+        if (
+            prize_data.quantity is not None
+            and prize_data.quantity
+            != Decimal("1")
+        ):
+            raise PrizeValidationError(
+                "Количество приза "
+                "должно быть равно 1."
             )
 
         before_details = (
@@ -345,4 +389,5 @@ prize_service = PrizeService(
     employee_repository=employee_repository,
     product_repository=product_repository,
     action_log_service=action_log_service,
+    club_setting_service=club_setting_service,
 )

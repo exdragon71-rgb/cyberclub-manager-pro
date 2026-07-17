@@ -58,6 +58,7 @@ class PrizeRead(BaseModel):
     product_id: UUID
 
     quantity: Decimal
+    ticket_price: Decimal
 
     status: PrizeStatus
     note: str | None

@@ -37,6 +37,10 @@ class Prize(Base):
             name="ck_prizes_quantity_positive",
         ),
         CheckConstraint(
+            "ticket_price >= 0",
+            name="ck_prizes_ticket_price_non_negative",
+        ),
+        CheckConstraint(
             "status IN ('active', 'written_off')",
             name="ck_prizes_status_valid",
         ),
@@ -71,6 +75,13 @@ class Prize(Base):
     quantity: Mapped[Decimal] = mapped_column(
         Numeric(12, 3),
         nullable=False,
+    )
+
+    ticket_price: Mapped[Decimal] = mapped_column(
+        Numeric(12, 2),
+        nullable=False,
+        default=Decimal("85.00"),
+        server_default="85.00",
     )
 
     status: Mapped[str] = mapped_column(
@@ -116,6 +127,7 @@ class Prize(Base):
             f"id={self.id!r}, "
             f"employee_id={self.employee_id!r}, "
             f"product_id={self.product_id!r}, "
+            f"ticket_price={self.ticket_price!r}, "
             f"status={self.status!r}"
             ")"
         )

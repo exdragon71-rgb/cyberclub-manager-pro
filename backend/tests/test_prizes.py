@@ -76,8 +76,8 @@ def test_create_prize(
         client,
         employee_id=employee["id"],
         product_id=product["id"],
-        quantity=2,
-        note="Два выигранных напитка",
+        quantity=1,
+        note="Один выигранный напиток",
     )
 
     assert prize["employee_id"] == employee["id"]
@@ -85,12 +85,16 @@ def test_create_prize(
 
     assert Decimal(
         prize["quantity"]
-    ) == Decimal("2")
+    ) == Decimal("1")
+
+    assert Decimal(
+        prize["ticket_price"]
+    ) == Decimal("85.00")
 
     assert prize["status"] == "active"
 
     assert prize["note"] == (
-        "Два выигранных напитка"
+        "Один выигранный напиток"
     )
 
     assert prize["written_off_at"] is None
@@ -99,6 +103,79 @@ def test_create_prize(
 
     assert prize["product"]["name"] == (
         "Lipton Лимон 0,5"
+    )
+
+
+def test_create_prize_uses_current_ticket_price(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    settings_response = client.patch(
+        "/club-settings",
+        json={
+            "lottery_ticket_price": 100,
+        },
+    )
+
+    assert settings_response.status_code == 200
+
+    prize = create_prize(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+    )
+
+    assert Decimal(
+        prize["ticket_price"]
+    ) == Decimal("100.00")
+
+    second_settings_response = client.patch(
+        "/club-settings",
+        json={
+            "lottery_ticket_price": 120,
+        },
+    )
+
+    assert second_settings_response.status_code == 200
+
+    prize_response = client.get(
+        f"/prizes/{prize['id']}"
+    )
+
+    assert prize_response.status_code == 200
+
+    stored_prize = prize_response.json()
+
+    assert Decimal(
+        stored_prize["ticket_price"]
+    ) == Decimal("100.00")
+
+
+def test_create_prize_rejects_quantity_not_one(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    response = client.post(
+        "/prizes",
+        json={
+            "employee_id": employee["id"],
+            "product_id": product["id"],
+            "quantity": 2,
+            "note": None,
+        },
+    )
+
+    assert response.status_code == 422
+
+    assert response.json()["detail"] == (
+        "Одна запись должна "
+        "соответствовать одной "
+        "лотерейке и одному призу. "
+        "Количество должно быть равно 1."
     )
 
 
@@ -112,8 +189,8 @@ def test_create_prize_writes_action_log(
         client,
         employee_id=employee["id"],
         product_id=product["id"],
-        quantity=2,
-        note="Два выигранных напитка",
+        quantity=1,
+        note="Один выигранный напиток",
     )
 
     response = client.get(
@@ -150,12 +227,16 @@ def test_create_prize_writes_action_log(
 
     assert Decimal(
         action_log["details"]["quantity"]
-    ) == Decimal("2")
+    ) == Decimal("1")
+
+    assert Decimal(
+        action_log["details"]["ticket_price"]
+    ) == Decimal("85.00")
 
     assert action_log["details"]["status"] == "active"
 
     assert action_log["details"]["note"] == (
-        "Два выигранных напитка"
+        "Один выигранный напиток"
     )
 
 
@@ -176,7 +257,7 @@ def test_get_prizes(
         client,
         employee_id=employee["id"],
         product_id=product["id"],
-        quantity=2,
+        quantity=1,
     )
 
     response = client.get(
@@ -199,6 +280,11 @@ def test_get_prizes(
 
     assert first_prize["id"] in prize_ids
     assert second_prize["id"] in prize_ids
+
+    for prize in prizes:
+        assert Decimal(
+            prize["ticket_price"]
+        ) == Decimal("85.00")
 
 
 def test_prize_does_not_change_inventory(
@@ -245,7 +331,7 @@ def test_prize_does_not_change_inventory(
     ) == Decimal("1")
 
 
-def test_update_prize_changes_active_quantity(
+def test_update_prize_changes_note(
     client: TestClient,
 ) -> None:
     employee = create_employee(client)
@@ -261,8 +347,7 @@ def test_update_prize_changes_active_quantity(
     response = client.patch(
         f"/prizes/{prize['id']}",
         json={
-            "quantity": 3,
-            "note": "Исправленное количество",
+            "note": "Исправленное примечание",
         },
     )
 
@@ -272,10 +357,10 @@ def test_update_prize_changes_active_quantity(
 
     assert Decimal(
         updated_prize["quantity"]
-    ) == Decimal("3")
+    ) == Decimal("1")
 
     assert updated_prize["note"] == (
-        "Исправленное количество"
+        "Исправленное примечание"
     )
 
     balance_response = client.get(
@@ -288,7 +373,34 @@ def test_update_prize_changes_active_quantity(
 
     assert Decimal(
         balance["active_prize_quantity"]
-    ) == Decimal("3")
+    ) == Decimal("1")
+
+
+def test_update_prize_rejects_quantity_not_one(
+    client: TestClient,
+) -> None:
+    employee = create_employee(client)
+    product = create_product(client)
+
+    prize = create_prize(
+        client,
+        employee_id=employee["id"],
+        product_id=product["id"],
+    )
+
+    response = client.patch(
+        f"/prizes/{prize['id']}",
+        json={
+            "quantity": 3,
+        },
+    )
+
+    assert response.status_code == 422
+
+    assert response.json()["detail"] == (
+        "Количество приза "
+        "должно быть равно 1."
+    )
 
 
 def test_update_prize_writes_action_log(
@@ -302,14 +414,13 @@ def test_update_prize_writes_action_log(
         employee_id=employee["id"],
         product_id=product["id"],
         quantity=1,
-        note="Один напиток",
+        note="Приз выдан",
     )
 
     response = client.patch(
         f"/prizes/{prize['id']}",
         json={
-            "quantity": 3,
-            "note": "Три напитка",
+            "note": "Примечание исправлено",
         },
     )
 
@@ -343,18 +454,26 @@ def test_update_prize_writes_action_log(
         action_log["details"]["before"]["quantity"]
     ) == Decimal("1")
 
+    assert Decimal(
+        action_log["details"]["before"]["ticket_price"]
+    ) == Decimal("85.00")
+
     assert (
         action_log["details"]["before"]["note"]
-        == "Один напиток"
+        == "Приз выдан"
     )
 
     assert Decimal(
         action_log["details"]["after"]["quantity"]
-    ) == Decimal("3")
+    ) == Decimal("1")
+
+    assert Decimal(
+        action_log["details"]["after"]["ticket_price"]
+    ) == Decimal("85.00")
 
     assert (
         action_log["details"]["after"]["note"]
-        == "Три напитка"
+        == "Примечание исправлено"
     )
 
 
@@ -460,6 +579,10 @@ def test_confirm_prize_reflected_writes_action_log(
     assert action_log["details"]["status"] == (
         "written_off"
     )
+
+    assert Decimal(
+        action_log["details"]["ticket_price"]
+    ) == Decimal("85.00")
 
     assert action_log["details"]["written_off_at"] is not None
 

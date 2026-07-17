@@ -16,6 +16,7 @@ export interface Prize {
   product_id: string
 
   quantity: string
+  ticket_price: string
 
   status: PrizeStatus
   note: string | null
@@ -32,13 +33,13 @@ export interface PrizeCreate {
   employee_id: string
   product_id: string
 
-  quantity: number
+  quantity: 1
 
   note?: string | null
 }
 
 export interface PrizeUpdate {
-  quantity?: number
+  quantity?: 1
 
   note?: string | null
 }

@@ -33,17 +33,6 @@ type StatusFilter =
   | 'all'
   | PrizeStatus
 
-function formatQuantity(
-  value: string | number,
-) {
-  return Number(value).toLocaleString(
-    'ru-RU',
-    {
-      maximumFractionDigits: 3,
-    },
-  )
-}
-
 function formatPrice(
   value: string | number,
 ) {
@@ -102,11 +91,6 @@ export function PrizesPage() {
     productId,
     setProductId,
   ] = useState('')
-
-  const [
-    quantity,
-    setQuantity,
-  ] = useState('1')
 
   const [
     note,
@@ -224,9 +208,6 @@ export function PrizesPage() {
   ) {
     event.preventDefault()
 
-    const normalizedQuantity =
-      Number(quantity)
-
     if (!employeeId) {
       setErrorMessage(
         'Выберите сотрудника.',
@@ -237,18 +218,6 @@ export function PrizesPage() {
     if (!productId) {
       setErrorMessage(
         'Выберите выигранный товар.',
-      )
-      return
-    }
-
-    if (
-      !Number.isFinite(
-        normalizedQuantity,
-      )
-      || normalizedQuantity <= 0
-    ) {
-      setErrorMessage(
-        'Количество должно быть больше нуля.',
       )
       return
     }
@@ -266,8 +235,7 @@ export function PrizesPage() {
           product_id:
             productId,
 
-          quantity:
-            normalizedQuantity,
+          quantity: 1,
 
           note:
             note.trim()
@@ -282,7 +250,6 @@ export function PrizesPage() {
       )
 
       setProductId('')
-      setQuantity('1')
       setNote('')
 
       setSuccessMessage(
@@ -415,15 +382,15 @@ export function PrizesPage() {
       ?? 85,
     )
 
-  const activePrizeQuantity =
-    activePrizes.reduce(
+  const totalLotteryRevenue =
+    prizes.reduce(
       (
         total,
         prize,
       ) =>
         total
         + Number(
-          prize.quantity,
+          prize.ticket_price,
         ),
       0,
     )
@@ -471,7 +438,7 @@ export function PrizesPage() {
         <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5">
             <p className="text-sm text-slate-400">
-              Всего записей
+              Продано лотереек
             </p>
 
             <p className="mt-2 text-3xl font-bold text-white">
@@ -497,16 +464,20 @@ export function PrizesPage() {
 
           <div className="rounded-2xl border border-slate-800 bg-[#0b0f17] p-5">
             <p className="text-sm text-slate-400">
-              Товаров по активным записям
+              Выручка по лотерейкам
             </p>
 
             <p className="mt-2 text-3xl font-bold text-cyan-400">
               {loadingStatus
                 === 'loading'
                   ? '...'
-                  : formatQuantity(
-                      activePrizeQuantity,
+                  : formatPrice(
+                      totalLotteryRevenue,
                     )}
+            </p>
+
+            <p className="mt-2 text-sm text-slate-500">
+              По сохранённым ценам билетов
             </p>
           </div>
 
@@ -544,9 +515,12 @@ export function PrizesPage() {
           </h2>
 
           <p className="mt-2 text-sm text-slate-400">
-            Запись уменьшит ожидаемый
-            остаток в ревизии, но не изменит
-            значения «По программе» и «Факт».
+            Одна запись соответствует одной
+            проданной лотерейке и одному призу.
+            Запись уменьшит ожидаемый остаток
+            выигранного товара в ревизии,
+            но не изменит значения
+            «По программе» и «Факт».
           </p>
 
           <p className="mt-2 text-sm text-emerald-400">
@@ -648,36 +622,7 @@ export function PrizesPage() {
               </select>
             </div>
 
-            <div>
-              <label
-                htmlFor="prize-quantity"
-                className="text-sm font-medium text-slate-300"
-              >
-                Количество
-              </label>
-
-              <input
-                id="prize-quantity"
-                type="number"
-                min="0.001"
-                step="0.001"
-                value={
-                  quantity
-                }
-                onChange={(
-                  event,
-                ) => {
-                  setQuantity(
-                    event.currentTarget
-                      .value,
-                  )
-                }}
-                required
-                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none transition focus:border-cyan-500"
-              />
-            </div>
-
-            <div>
+            <div className="md:col-span-2">
               <label
                 htmlFor="prize-note"
                 className="text-sm font-medium text-slate-300"
@@ -801,7 +746,7 @@ export function PrizesPage() {
                     </th>
 
                     <th className="px-6 py-4">
-                      Количество
+                      Цена билета
                     </th>
 
                     <th className="px-6 py-4">
@@ -850,17 +795,10 @@ export function PrizesPage() {
                             }
                           </td>
 
-                          <td className="px-6 py-4 text-slate-300">
-                            {formatQuantity(
-                              prize.quantity,
+                          <td className="whitespace-nowrap px-6 py-4 font-medium text-emerald-400">
+                            {formatPrice(
+                              prize.ticket_price,
                             )}
-
-                            {' '}
-
-                            {
-                              prize.product
-                                .unit
-                            }
                           </td>
 
                           <td className="px-6 py-4">
