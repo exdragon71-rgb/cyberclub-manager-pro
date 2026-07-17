@@ -1,0 +1,16 @@
+﻿CYBERCLUB MANAGER PRO — PRODUCTION-ЗАПУСК
+
+Файл:
+Запустить CyberClub Manager Pro production.bat
+
+Что он делает:
+1. Собирает frontend командой npm run build.
+2. Запускает только FastAPI.
+3. FastAPI раздаёт frontend из frontend\dist.
+4. Открывает приложение по адресу:
+   http://127.0.0.1:8000/
+
+Vite и второй терминал во время работы больше не нужны.
+
+Для остановки приложения:
+закройте окно сервера или нажмите Ctrl+C.
