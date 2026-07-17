@@ -3,6 +3,10 @@ import type {
   ActionLogFilters,
 } from '../types/actionLog'
 import type {
+  BookingNote,
+  BookingNoteUpdate,
+} from '../types/bookingNote'
+import type {
   ClubSetting,
   ClubSettingUpdate,
 } from '../types/clubSetting'
@@ -401,6 +405,29 @@ export function confirmPrizeReflected(
     `/prizes/${prizeId}/confirm-reflected`,
     {
       method: 'POST',
+    },
+  )
+}
+
+export function getBookingNote(
+  bookingDate: string,
+): Promise<BookingNote> {
+  return apiRequest<BookingNote>(
+    `/booking-notes/${bookingDate}`,
+  )
+}
+
+export function updateBookingNote(
+  bookingDate: string,
+  bookingNote: BookingNoteUpdate,
+): Promise<BookingNote> {
+  return apiRequest<BookingNote>(
+    `/booking-notes/${bookingDate}`,
+    {
+      method: 'PUT',
+      body: JSON.stringify(
+        bookingNote,
+      ),
     },
   )
 }

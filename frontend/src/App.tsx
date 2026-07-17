@@ -59,8 +59,8 @@ const navigationItems = [
     active: false,
   },
   {
-    name: 'Смены',
-    path: null,
+    name: 'Брони',
+    path: '/bookings',
     active: false,
   },
   {
@@ -97,6 +97,10 @@ const quickActions = [
   {
     name: 'Открыть ревизию',
     path: '/inventory',
+  },
+  {
+    name: 'Открыть брони',
+    path: '/bookings',
   },
 ] as const
 
@@ -546,46 +550,22 @@ function App() {
                         + 'hover:bg-slate-800/70 '
                         + 'hover:text-white'
                       ),
-
-                  item.path
-                    ? ''
-                    : (
-                        'cursor-not-allowed '
-                        + 'opacity-40'
-                      ),
                 ].join(' ')
 
-                if (item.path) {
-                  return (
-                    <Link
-                      key={
-                        item.name
-                      }
-                      to={
-                        item.path
-                      }
-                      className={
-                        className
-                      }
-                    >
-                      {item.name}
-                    </Link>
-                  )
-                }
-
                 return (
-                  <button
+                  <Link
                     key={
                       item.name
                     }
-                    type="button"
-                    disabled
+                    to={
+                      item.path
+                    }
                     className={
                       className
                     }
                   >
                     {item.name}
-                  </button>
+                  </Link>
                 )
               },
             )}

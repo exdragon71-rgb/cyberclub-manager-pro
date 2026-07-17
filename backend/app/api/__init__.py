@@ -1,6 +1,9 @@
 from app.api.action_logs import (
     router as action_logs_router,
 )
+from app.api.booking_notes import (
+    router as booking_notes_router,
+)
 from app.api.club_settings import (
     router as club_settings_router,
 )
@@ -17,6 +20,7 @@ from app.api.products import router as products_router
 
 __all__ = [
     "action_logs_router",
+    "booking_notes_router",
     "club_settings_router",
     "debts_router",
     "employees_router",

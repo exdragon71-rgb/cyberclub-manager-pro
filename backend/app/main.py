@@ -5,6 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import (
     action_logs_router,
+    booking_notes_router,
     club_settings_router,
     debts_router,
     employees_router,
@@ -44,6 +45,7 @@ app.include_router(prizes_router)
 app.include_router(lightshell_imports_router)
 app.include_router(action_logs_router)
 app.include_router(club_settings_router)
+app.include_router(booking_notes_router)
 
 
 @app.get(
