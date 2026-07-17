@@ -1,0 +1,9 @@
+﻿WINDOWS INSTALLER BUILD FIX
+
+Replace:
+scripts\build_windows_installer.ps1
+
+Then run:
+Собрать Windows установщик.bat
+
+This version avoids the ProgramFiles(x86) parser issue in Windows PowerShell 5.1.
