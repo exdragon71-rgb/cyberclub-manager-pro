@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 
 import {
   getActionLogs,
+  getBookingNote,
   getClubSettings,
   getDatabaseHealth,
   getDebts,
@@ -17,6 +18,9 @@ import {
 } from './api/client'
 
 import type { ActionLog } from './types/actionLog'
+import type {
+  BookingNote,
+} from './types/bookingNote'
 import type {
   ClubSetting,
 } from './types/clubSetting'
@@ -182,6 +186,25 @@ function formatDate(
   )
 }
 
+function formatDateForApi(
+  value: Date,
+) {
+  const year =
+    value.getFullYear()
+
+  const month =
+    String(
+      value.getMonth() + 1,
+    ).padStart(2, '0')
+
+  const day =
+    String(
+      value.getDate(),
+    ).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
+
 function App() {
   const [
     databaseHealth,
@@ -223,6 +246,13 @@ function App() {
   ] = useState<ActionLog[]>([])
 
   const [
+    todayBookingNote,
+    setTodayBookingNote,
+  ] = useState<BookingNote | null>(
+    null,
+  )
+
+  const [
     loadingStatus,
     setLoadingStatus,
   ] = useState<LoadingStatus>(
@@ -245,6 +275,7 @@ function App() {
           prizesResponse,
           balancesResponse,
           actionLogsResponse,
+          todayBookingResponse,
         ] = await Promise.all([
           getDatabaseHealth(),
           getClubSettings(),
@@ -255,6 +286,11 @@ function App() {
           getActionLogs({
             limit: 5,
           }),
+          getBookingNote(
+            formatDateForApi(
+              new Date(),
+            ),
+          ),
         ])
 
         setDatabaseHealth(
@@ -285,6 +321,10 @@ function App() {
           actionLogsResponse,
         )
 
+        setTodayBookingNote(
+          todayBookingResponse,
+        )
+
         setErrorMessage('')
 
         setLoadingStatus(
@@ -298,6 +338,7 @@ function App() {
         setPrizes([])
         setBalances([])
         setActionLogs([])
+        setTodayBookingNote(null)
 
         setLoadingStatus(
           'error',
@@ -443,6 +484,22 @@ function App() {
         )
       },
       0,
+    )
+
+  const todayBookingLines =
+    todayBookingNote?.content
+      .split(/\r?\n/)
+      .map(
+        (line) =>
+          line.trim(),
+      )
+      .filter(Boolean)
+    ?? []
+
+  const visibleTodayBookingLines =
+    todayBookingLines.slice(
+      0,
+      8,
     )
 
   const dashboardCards = [
@@ -677,6 +734,80 @@ function App() {
                   </article>
                 ),
               )}
+            </section>
+
+            <section className="overflow-hidden rounded-2xl border border-slate-800 bg-[#0d131d]">
+              <div className="flex flex-col gap-3 border-b border-slate-800 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">
+                    Брони сегодня
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    Записи из электронного блокнота
+                  </p>
+                </div>
+
+                <Link
+                  to="/bookings"
+                  className="text-sm font-medium text-cyan-400 transition hover:text-cyan-300"
+                >
+                  Открыть брони
+                </Link>
+              </div>
+
+              <div className="px-6 py-5">
+                {loadingStatus
+                  === 'loading' && (
+                    <p className="text-sm text-slate-500">
+                      Загрузка броней...
+                    </p>
+                  )}
+
+                {loadingStatus
+                  === 'success'
+                  && visibleTodayBookingLines.length
+                  === 0 && (
+                    <p className="text-sm text-slate-500">
+                      На сегодня броней пока нет
+                    </p>
+                  )}
+
+                {loadingStatus
+                  === 'success'
+                  && visibleTodayBookingLines.length
+                  > 0 && (
+                    <div className="space-y-2">
+                      {visibleTodayBookingLines.map(
+                        (
+                          line,
+                          index,
+                        ) => (
+                          <div
+                            key={
+                              `${line}-${index}`
+                            }
+                            className="rounded-xl border border-slate-800 bg-slate-950/70 px-4 py-3 font-mono text-base text-slate-200"
+                          >
+                            {line}
+                          </div>
+                        ),
+                      )}
+
+                      {todayBookingLines.length
+                        > visibleTodayBookingLines.length && (
+                          <p className="pt-1 text-sm text-slate-500">
+                            Ещё
+                            {' '}
+                            {todayBookingLines.length
+                              - visibleTodayBookingLines.length}
+                            {' '}
+                            записей
+                          </p>
+                        )}
+                    </div>
+                  )}
+              </div>
             </section>
 
             <section className="grid gap-6 xl:grid-cols-[1.6fr_1fr]">
