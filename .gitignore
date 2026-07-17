@@ -32,3 +32,11 @@ Thumbs.db
 
 # Логи
 *.log
+build/
+dist/
+
+build/
+dist/
+
+build/
+dist/

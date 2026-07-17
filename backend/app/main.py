@@ -1,11 +1,14 @@
 from pathlib import Path
+import sys
 
 from fastapi import (
     FastAPI,
     HTTPException,
     Request,
 )
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import (
+    CORSMiddleware,
+)
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
@@ -26,12 +29,27 @@ from app.core.config import settings
 from app.core.database import engine
 
 
-PROJECT_ROOT = (
-    Path(__file__).resolve().parents[2]
-)
+def get_resource_root() -> Path:
+    if getattr(
+        sys,
+        "frozen",
+        False,
+    ):
+        return Path(
+            sys._MEIPASS,
+        )
+
+    return (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+    )
+
+
+RESOURCE_ROOT = get_resource_root()
 
 FRONTEND_DIST = (
-    PROJECT_ROOT
+    RESOURCE_ROOT
     / "frontend"
     / "dist"
 )
@@ -81,14 +99,22 @@ app.add_middleware(
 
 
 app.include_router(products_router)
-app.include_router(inventory_balances_router)
+app.include_router(
+    inventory_balances_router,
+)
 app.include_router(employees_router)
 app.include_router(debts_router)
 app.include_router(prizes_router)
-app.include_router(lightshell_imports_router)
+app.include_router(
+    lightshell_imports_router,
+)
 app.include_router(action_logs_router)
-app.include_router(club_settings_router)
-app.include_router(booking_notes_router)
+app.include_router(
+    club_settings_router,
+)
+app.include_router(
+    booking_notes_router,
+)
 
 
 @app.get(
@@ -126,6 +152,7 @@ def database_health_check():
             result = connection.execute(
                 text("SELECT 1")
             )
+
             result.scalar_one()
 
         return {
@@ -172,7 +199,10 @@ def request_accepts_html(
         )
     )
 
-    return "text/html" in accept_header
+    return (
+        "text/html"
+        in accept_header
+    )
 
 
 @app.get(
@@ -256,7 +286,6 @@ def serve_frontend_route(
     raise HTTPException(
         status_code=404,
         detail=(
-            "Frontend build not found. "
-            "Run npm run build."
+            "Frontend build not found."
         ),
     )

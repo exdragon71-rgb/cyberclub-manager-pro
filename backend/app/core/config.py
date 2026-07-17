@@ -1,10 +1,39 @@
 from functools import lru_cache
+from pathlib import Path
+import sys
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
+
+
+def get_env_file_path() -> Path:
+    if getattr(
+        sys,
+        "frozen",
+        False,
+    ):
+        return (
+            Path(
+                sys.executable,
+            ).resolve().parent
+            / ".env"
+        )
+
+    return (
+        Path(__file__)
+        .resolve()
+        .parents[2]
+        / ".env"
+    )
 
 
 class Settings(BaseSettings):
-    app_name: str = "CyberClub Manager Pro API"
+    app_name: str = (
+        "CyberClub Manager Pro API"
+    )
+
     app_version: str = "0.1.0"
 
     db_host: str
@@ -14,7 +43,9 @@ class Settings(BaseSettings):
     db_password: str
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=str(
+            get_env_file_path(),
+        ),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -23,9 +54,12 @@ class Settings(BaseSettings):
     @property
     def database_url(self) -> str:
         return (
-            f"postgresql+psycopg2://{self.db_user}:"
-            f"{self.db_password}@{self.db_host}:"
-            f"{self.db_port}/{self.db_name}"
+            "postgresql+psycopg2://"
+            f"{self.db_user}:"
+            f"{self.db_password}@"
+            f"{self.db_host}:"
+            f"{self.db_port}/"
+            f"{self.db_name}"
         )
 
 
